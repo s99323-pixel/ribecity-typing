@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>リベシティタイピング</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header>
+    <div class="logo">リベシティタイピング</div>
+    <div class="live-stats">
+      <span><span class="val" id="wpm">0</span><span class="lbl">WPM</span></span>
+      <span><span class="val" id="acc">100%</span><span class="lbl">正確率</span></span>
+    </div>
+  </header>
+
+  <!-- プログレスバー -->
+  <div class="progress-wrap">
+    <div class="progress-track">
+      <div id="progress-bar"></div>
+    </div>
+  </div>
+
+  <!-- メイン -->
+  <main>
+
+    <!-- 難易度 -->
+    <div class="diff-wrap">
+      <button class="diff-btn active" data-diff="easy">初級</button>
+      <button class="diff-btn" data-diff="medium">中級</button>
+      <button class="diff-btn" data-diff="hard">上級</button>
+    </div>
+
+    <!-- カテゴリ -->
+    <div id="category"></div>
+
+    <!-- 名言表示 -->
+    <div class="quote-box">
+      <div id="quote-display"></div>
+    </div>
+
+    <!-- コンボ -->
+    <div id="combo-display"></div>
+
+    <!-- 入力 -->
+    <div class="input-wrap">
+      <input
+        type="text"
+        id="typing-input"
+        placeholder="ここに入力してください…"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+      >
+    </div>
+
+    <!-- コントロール -->
+    <div class="controls">
+      <button class="ctrl-btn" id="restart-btn">↺ 次の名言 [Tab]</button>
+      <button class="ctrl-btn" id="bgm-btn">🎵 BGM: ON</button>
+    </div>
+
+  </main>
+
+  <!-- 結果オーバーレイ -->
+  <div id="results" class="hidden">
+    <div class="results-card">
+      <h2>Result</h2>
+      <div class="result-stats">
+        <div class="stat">
+          <span class="stat-label">WPM</span>
+          <span class="stat-value" id="r-wpm">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">正確率</span>
+          <span class="stat-value" id="r-acc">0%</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">最大コンボ</span>
+          <span class="stat-value" id="r-combo">0</span>
+        </div>
+      </div>
+      <button class="next-btn" id="next-btn">次の名言へ →</button>
+    </div>
+  </div>
+
+  <!-- パーティクル -->
+  <canvas id="particle-canvas"></canvas>
+
+  <!-- フッター -->
+  <footer>両学長 名言タイピング — powered by リベシティ</footer>
+
+  <script src="js/quotes.js"></script>
+  <script src="js/sounds.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
