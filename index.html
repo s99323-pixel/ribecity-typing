@@ -1,101 +1,1345 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>リベシティタイピング</title>
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>リベシティ TYPING FIGHTER</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:'Hiragino Sans','Yu Gothic',monospace;}
+canvas{display:block;touch-action:none;}
+#hint{color:#444;font-size:11px;margin-top:6px;letter-spacing:1px;}
+#mobileInput{position:fixed;left:-9999px;top:0;opacity:0;width:1px;height:1px;}
+</style>
+</head><body>
+<canvas id="c"></canvas>
+<input id="mobileInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+<div id="hint">キーボードで文字を入力 | Enter: スタート / スマホ: タップ</div>
+<script>
+'use strict';
+const cvs=document.getElementById('c');
+const ctx=cvs.getContext('2d');
+const W=720,H=405;
+cvs.width=W;cvs.height=H;
+function resize(){const s=Math.min(window.innerWidth/W,window.innerHeight/H);cvs.style.width=W*s+'px';cvs.style.height=H*s+'px';}
+resize();window.addEventListener('resize',resize);
 
-  <!-- ヘッダー -->
-  <header>
-    <div class="logo">リベシティタイピング</div>
-    <div class="live-stats">
-      <span><span class="val" id="wpm">0</span><span class="lbl">WPM</span></span>
-      <span><span class="val" id="acc">100%</span><span class="lbl">正確率</span></span>
-    </div>
-  </header>
+// ── AUDIO ──
+const AC=new (window.AudioContext||window.webkitAudioContext)();
+const masterGain=AC.createGain();masterGain.gain.value=0.9;masterGain.connect(AC.destination);
+const sfxGain=AC.createGain();sfxGain.gain.value=0.7;sfxGain.connect(masterGain);
+const bgmGain=AC.createGain();bgmGain.gain.value=0.5;bgmGain.connect(masterGain);
+let bgmAudio=null,bgmPlaying=false,bgmPitchRate=1.0;
 
-  <!-- プログレスバー -->
-  <div class="progress-wrap">
-    <div class="progress-track">
-      <div id="progress-bar"></div>
-    </div>
-  </div>
+function osc(f,d,type='sine',v=0.3,delay=0,sweep=null,dest=sfxGain){
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.connect(g);g.connect(dest);o.type=type;
+  const t=AC.currentTime+delay;
+  if(sweep){o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(sweep,t+d);}
+  else o.frequency.value=f;
+  g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(v,t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.001,t+d);
+  o.start(t);o.stop(t+d+0.02);
+}
+function nz(d,v=0.15,lp=600){
+  const buf=AC.createBuffer(1,~~(AC.sampleRate*d),AC.sampleRate);
+  const dt=buf.getChannelData(0);for(let i=0;i<dt.length;i++)dt[i]=Math.random()*2-1;
+  const s=AC.createBufferSource(),g=AC.createGain(),f=AC.createBiquadFilter();
+  f.type='bandpass';f.frequency.value=lp;f.Q.value=1;
+  s.buffer=buf;s.connect(f);f.connect(g);g.connect(sfxGain);
+  g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+d);
+  s.start();s.stop(AC.currentTime+d+0.02);
+}
 
-  <!-- メイン -->
-  <main>
+const SFX={
+  correct:(idx,len)=>{
+    const a=new Audio('SE/決定1.wav');
+    a.volume=0.45;a.playbackRate=1.0+idx*(0.8/Math.max(len-1,1));
+    a.play().catch(()=>{});
+    osc(400+idx*(600/Math.max(len-1,1)),0.025,'sine',0.08);
+  },
+  wrong:()=>{osc(90,0.18,'sawtooth',0.28,0,45);osc(55,0.22,'square',0.18,0,30);nz(0.14,0.25,200);},
+  wordClear:()=>{[523,659,784,1047].forEach((f,i)=>{osc(f,0.18,'sine',0.18,i*0.06);});nz(0.1,0.12,800);},
+  enemyAtk:()=>{osc(80,0.25,'sawtooth',0.28,0,40);nz(0.18,0.22,250);osc(180,0.12,'square',0.12,0.05);},
+  ko:()=>{[784,659,523,392,261].forEach((f,i)=>{osc(f,0.25,'sine',0.25,i*0.09);});osc(100,0.4,'sawtooth',0.3,0,50);nz(0.35,0.3,400);},
+  clear:()=>{
+    [523,659,784,1047,784,1047,1319,1047,1319,1568].forEach((f,i)=>{osc(f,0.28,'sine',0.3,i*0.08);});
+    setTimeout(()=>{[261,329,392,523].forEach((f,i)=>{osc(f,0.5,'sine',0.18,i*0.1,null,bgmGain);});},300);
+  },
+  shohou:()=>{
+    const a=new Audio('商流拳.mp3');a.volume=0.9;a.play().catch(()=>{
+      osc(50,0.8,'sawtooth',0.5,0,200);
+      [220,277,330,440,554,659,880].forEach((f,i)=>{osc(f,0.5,'sine',0.35,i*0.05);});
+      nz(0.6,0.35,1500);
+    });
+  },
+  gaugeFull:()=>{[440,554,659,880,1100].forEach((f,i)=>{osc(f,0.25,'sine',0.28,i*0.06);});nz(0.12,0.15,1200);},
+  fight:()=>{osc(220,0.12,'square',0.3);osc(277,0.1,'square',0.25,0.05);osc(440,0.15,'sine',0.35,0.1);},
+  stageClear:()=>{[523,659,784,523,784,1047,1319].forEach((f,i)=>{osc(f,0.22,'sine',0.28,i*0.1);});},
+  combo10:()=>{[880,1100,1320].forEach((f,i)=>{osc(f,0.15,'sine',0.32,i*0.05);});},
+};
 
-    <!-- 難易度 -->
-    <div class="diff-wrap">
-      <button class="diff-btn active" data-diff="easy">初級</button>
-      <button class="diff-btn" data-diff="medium">中級</button>
-      <button class="diff-btn" data-diff="hard">上級</button>
-    </div>
+function startBGM(){stopBGM();bgmAudio=new Audio('Escort.mp3');bgmAudio.loop=true;bgmAudio.volume=0.45;bgmPlaying=true;bgmAudio.play().catch(e=>console.warn('BGM:',e));}
+function stopBGM(){bgmPlaying=false;if(bgmAudio){bgmAudio.pause();bgmAudio.currentTime=0;bgmAudio=null;}}
+function setBGMPitch(r){bgmPitchRate=r;if(bgmAudio)bgmAudio.playbackRate=r;}
 
-    <!-- カテゴリ -->
-    <div id="category"></div>
+// ── チップチューン BGM（タイトル/クリア/ゲームオーバー）──
+let chipTimer=null;const chipNodes=[];
+function stopChip(){clearTimeout(chipTimer);chipTimer=null;chipNodes.forEach(n=>{try{n.stop();}catch(e){}});chipNodes.length=0;}
+function chipNote(freq,start,dur,type='square',vol=0.16){
+  if(freq<=0)return;
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.connect(g);g.connect(sfxGain);o.type=type;o.frequency.value=freq;
+  const t=AC.currentTime+start;
+  g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(vol,t+0.005);
+  g.gain.linearRampToValueAtTime(vol*0.6,t+dur*0.7);
+  g.gain.linearRampToValueAtTime(0,t+dur);
+  o.start(t);o.stop(t+dur+0.02);chipNodes.push(o);
+}
+function startChip(type){
+  stopChip();AC.resume();
+  if(type==='title'){
+    // 明るい冒険風ループ
+    const M=[523,659,784,1047,784,659,523,392,440,554,659,880,659,554,440,330,523,659,784,1047,1319,1047,784,523,392,494,587,784,587,494,392,294];
+    const b=60/165;
+    const loop=()=>{
+      M.forEach((f,i)=>{
+        chipNote(f,i*b,b*0.82,'square',0.14);
+        if(i%4===0)chipNote(f/2,i*b,b*1.5,'triangle',0.09);
+        if(i%8===0)chipNote(f/4,i*b,b*2,'triangle',0.07);
+      });
+      chipTimer=setTimeout(loop,(M.length*b)*1000+30);
+    };loop();
+  }else if(type==='clear'){
+    // 勝利ファンファーレ（ループ）
+    const M=[523,659,784,1047,784,1047,1319,1047,1319,1568,1319,1047,784,1047,1319,1047,784,659,523];
+    const b=0.13;
+    const loop=()=>{
+      M.forEach((f,i)=>chipNote(f,i*b,b*0.88,'square',0.18));
+      [523,659,784].forEach(f=>chipNote(f,M.length*b,0.5,'square',0.14));
+      chipTimer=setTimeout(loop,(M.length*b+0.7)*1000+30);
+    };loop();
+  }else if(type==='gameover'){
+    // 哀愁のゲームオーバー（ループ）
+    const M=[784,740,698,659,622,587,554,523,494,466,440,415,392,349,330,294,261,220,196];
+    const b=0.19;
+    const bass=[196,185,174,165,156,147,138,130,123,116,110,104,98,92,87,82,77,73,65];
+    const loop=()=>{
+      M.forEach((f,i)=>chipNote(f,i*b,b*1.05,'square',0.17));
+      bass.forEach((f,i)=>chipNote(f,i*b,b*1.5,'triangle',0.11));
+      chipTimer=setTimeout(loop,(M.length*b+0.5)*1000+30);
+    };loop();
+  }
+}
 
-    <!-- 名言表示 -->
-    <div class="quote-box">
-      <div id="quote-display"></div>
-    </div>
+// ── ハイスコア ──
+const LS_KEY='vitaminD_hs_v4';
+function loadHS(){try{return JSON.parse(localStorage.getItem(LS_KEY))||{score:0,combo:0,achievements:[]};}catch(e){return{score:0,combo:0,achievements:[]};}}
+function saveHS(score,combo){const hs=loadHS();let u=false;if(score>hs.score){hs.score=score;u=true;}if(combo>hs.combo){hs.combo=combo;u=true;}if(u)localStorage.setItem(LS_KEY,JSON.stringify(hs));return hs;}
 
-    <!-- コンボ -->
-    <div id="combo-display"></div>
+// ── 実績 ──
+const ACHIEVEMENTS=[
+  {id:'first_kill',name:'初陣破り',desc:'初めて敵を倒した'},
+  {id:'combo10',name:'10コンボ',desc:'10コンボ達成'},
+  {id:'combo20',name:'20コンボ',desc:'20コンボ達成'},
+  {id:'combo30',name:'神コンボ',desc:'30コンボ達成'},
+  {id:'combo50',name:'伝説コンボ',desc:'50コンボ達成！'},
+  {id:'nodamage',name:'ノーダメ',desc:'1ステージノーダメクリア'},
+  {id:'shohou_used',name:'商流拳',desc:'商流拳を発動した'},
+  {id:'shohou3',name:'商流拳三連',desc:'商流拳を3回発動'},
+  {id:'wpm60',name:'高速タイパー',desc:'WPM 60以上を記録'},
+  {id:'wpm80',name:'超高速',desc:'WPM 80以上を記録'},
+  {id:'wpm100',name:'神速',desc:'WPM 100以上！'},
+  {id:'allclear',name:'FIRE達成',desc:'全ステージクリア'},
+  {id:'stage5',name:'最終決戦',desc:'ステージ5に到達'},
+];
+let achieveQueue=[];
+function getAchievements(){return loadHS().achievements||[];}
+function unlockAchievement(id){
+  const hs=loadHS();const list=hs.achievements||[];
+  if(list.includes(id))return;
+  list.push(id);hs.achievements=list;localStorage.setItem(LS_KEY,JSON.stringify(hs));
+  const def=ACHIEVEMENTS.find(a=>a.id===id);
+  if(def)achieveQueue.push({name:def.name,desc:def.desc,timer:220});
+}
+function drawAchievements(){
+  achieveQueue=achieveQueue.filter(a=>{
+    a.timer--;const alpha=a.timer<40?a.timer/40:1;
+    const y=H-160-achieveQueue.indexOf(a)*58;
+    ctx.save();ctx.globalAlpha=alpha;
+    ctx.fillStyle='rgba(10,8,30,0.94)';ctx.strokeStyle='#FFD700';ctx.lineWidth=1.5;
+    ctx.shadowBlur=14;ctx.shadowColor='#FFD700';
+    ctx.beginPath();ctx.roundRect(W-256,y,244,50,10);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+    ctx.fillStyle='#FFD700';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.textAlign='left';ctx.fillText('🏆 実績解除: '+a.name,W-246,y+19);
+    ctx.fillStyle='rgba(200,200,220,0.9)';ctx.font='10px monospace';
+    ctx.fillText(a.desc,W-246,y+38);ctx.restore();
+    return a.timer>0;
+  });
+}
 
-    <!-- 入力 -->
-    <div class="input-wrap">
-      <input
-        type="text"
-        id="typing-input"
-        placeholder="ここに入力してください…"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-      >
-    </div>
+// ── ワードデータベース（重複なし・大幅拡張）──
+const WORD_DB=[
+  // 初級 idx 0-29
+  {word:'fire',jp:'🔥 FIRE！',dmg:12},
+  {word:'book',jp:'📚 本を読む',dmg:10},
+  {word:'save',jp:'💰 節約！',dmg:10},
+  {word:'lion',jp:'🦁 学長',dmg:12},
+  {word:'coin',jp:'🪙 コイン',dmg:11},
+  {word:'rich',jp:'お金持ち',dmg:12},
+  {word:'work',jp:'副業開始',dmg:10},
+  {word:'debt',jp:'借金NG！',dmg:13},
+  {word:'cash',jp:'現金主義',dmg:11},
+  {word:'etf',jp:'ETF投資',dmg:14},
+  {word:'bond',jp:'債券投資',dmg:12},
+  {word:'fund',jp:'投資信託',dmg:13},
+  {word:'gold',jp:'ゴールド',dmg:12},
+  {word:'reit',jp:'不動産投資',dmg:14},
+  {word:'earn',jp:'💹 収入を得る',dmg:11},
+  {word:'grow',jp:'🌱 成長する',dmg:10},
+  {word:'wise',jp:'賢く生きる',dmg:11},
+  {word:'free',jp:'🔓 自由になれ',dmg:12},
+  {word:'goal',jp:'🎯 目標設定',dmg:11},
+  {word:'plan',jp:'📋 計画を立てる',dmg:10},
+  {word:'hope',jp:'希望を持て',dmg:10},
+  {word:'life',jp:'人生を楽しめ',dmg:12},
+  {word:'time',jp:'⏰ 時間は命',dmg:11},
+  {word:'win',jp:'🏆 勝ちに行け',dmg:13},
+  {word:'tax',jp:'節税で賢く',dmg:11},
+  {word:'ace',jp:'エースになれ',dmg:12},
+  {word:'max',jp:'利益を最大化',dmg:11},
+  {word:'top',jp:'頂点を目指せ',dmg:12},
+  {word:'cut',jp:'無駄を切れ',dmg:10},
+  {word:'buy',jp:'低価格で買え',dmg:11},
+  // 中級 idx 30-64
+  {word:'index',jp:'インデックス投資',dmg:18},
+  {word:'money',jp:'お金の勉強',dmg:16},
+  {word:'scam',jp:'詐欺師撃退',dmg:20},
+  {word:'invest',jp:'長期投資',dmg:20},
+  {word:'budget',jp:'家計管理',dmg:18},
+  {word:'profit',jp:'副業収入',dmg:19},
+  {word:'growth',jp:'複利の力',dmg:22},
+  {word:'asset',jp:'資産形成',dmg:18},
+  {word:'stock',jp:'株式投資',dmg:19},
+  {word:'nisa',jp:'新NISA活用',dmg:20},
+  {word:'ideco',jp:'iDeCo節税',dmg:22},
+  {word:'return',jp:'リターン最大化',dmg:21},
+  {word:'income',jp:'副収入GET',dmg:20},
+  {word:'saving',jp:'貯蓄を積み上げ',dmg:19},
+  {word:'market',jp:'市場分析',dmg:20},
+  {word:'crypto',jp:'仮想通貨注意',dmg:22},
+  {word:'equity',jp:'自己資本',dmg:21},
+  {word:'fukuri',jp:'複利の魔法',dmg:28},
+  {word:'poison',jp:'毒ローン撃退',dmg:25},
+  {word:'hustle',jp:'💪 ハッスル！',dmg:20},
+  {word:'thrive',jp:'豊かに生きる',dmg:22},
+  {word:'action',jp:'行動あるのみ',dmg:21},
+  {word:'create',jp:'価値を創造せよ',dmg:22},
+  {word:'frugal',jp:'倹約の精神',dmg:20},
+  {word:'skills',jp:'スキルを磨け',dmg:21},
+  {word:'choice',jp:'選択が運命を変える',dmg:22},
+  {word:'habits',jp:'良い習慣が財を生む',dmg:24},
+  {word:'effort',jp:'努力は裏切らない',dmg:22},
+  {word:'focus',jp:'集中が成果を生む',dmg:20},
+  {word:'brave',jp:'勇気ある行動を',dmg:21},
+  {word:'value',jp:'価値を生み出せ',dmg:20},
+  {word:'learn',jp:'学び続ける者が勝つ',dmg:21},
+  {word:'grind',jp:'地道な努力が宝',dmg:22},
+  {word:'level',jp:'レベルアップせよ',dmg:19},
+  {word:'smart',jp:'賢く働け賢く稼げ',dmg:21},
+  // 上級 idx 65-99
+  {word:'freedom',jp:'🔥 FIRE達成！',dmg:30},
+  {word:'vitamin',jp:'ビタミンD！',dmg:28},
+  {word:'shohou',jp:'⚡ 商流拳！！',dmg:35},
+  {word:'kogane',jp:'お金持ちへの道',dmg:32},
+  {word:'diversify',jp:'分散投資',dmg:38},
+  {word:'compound',jp:'複利運用',dmg:36},
+  {word:'inflation',jp:'インフレ対策',dmg:38},
+  {word:'portfolio',jp:'ポートフォリオ最適化',dmg:40},
+  {word:'lifeplan',jp:'ライフプラン設計',dmg:35},
+  {word:'cashflow',jp:'キャッシュフロー改善',dmg:38},
+  {word:'insurance',jp:'保険は最小限に',dmg:36},
+  {word:'dividend',jp:'配当金生活',dmg:35},
+  {word:'rebalance',jp:'リバランス実行',dmg:40},
+  {word:'indexfund',jp:'インデックスファンド最強',dmg:50},
+  {word:'smallrich',jp:'お金持ちで幸せに生きる',dmg:48},
+  {word:'longterm',jp:'長期・積立・分散投資',dmg:45},
+  {word:'opportunity',jp:'機会損失を避ける',dmg:55},
+  {word:'liberation',jp:'経済的自由を手に入れる',dmg:58},
+  {word:'compoundmagic',jp:'複利は人類最大の発明',dmg:65},
+  {word:'ribecity',jp:'リベシティで学べ！',dmg:52},
+  {word:'antiscam',jp:'詐欺から身を守れ！',dmg:50},
+  {word:'fireachieve',jp:'FIRE達成で人生変わる',dmg:70},
+  {word:'financial',jp:'💰 財政的自由計画',dmg:45},
+  {word:'millionaire',jp:'🏆 億万長者への道',dmg:68},
+  {word:'discipline',jp:'自制心を鍛えよ',dmg:55},
+  {word:'persistence',jp:'諦めない心が全て',dmg:72},
+  {word:'consistency',jp:'継続は力なり！',dmg:65},
+  {word:'nevergiveupon',jp:'絶対に諦めるな！',dmg:75},
+  {word:'borrowingkills',jp:'借金は人生の罠だ',dmg:70},
+  {word:'riberalization',jp:'リベシティで経済的自由へ',dmg:78},
+  {word:'selfimprovement',jp:'自己投資が最高の投資',dmg:82},
+  {word:'shakkinnankasunjane',jp:'借金なんかすんじゃねえ！',dmg:90},
+  {word:'kyougajinseideichibanwakaihi',jp:'🔥 今日が人生で一番若い日！',dmg:95},
+  {word:'okanenobenkyouhajimenasai',jp:'今すぐお金の勉強を始めなさい！',dmg:88},
+  {word:'fukugyouhajimetemiyo',jp:'副業を始めてみよう！',dmg:75},
+  // ── ステージ5専用（数字・記号混じり・超上級）idx 100-119 ──
+  {word:'fire2024',jp:'🔥 FIRE2024達成！',dmg:85},
+  {word:'nisa360',jp:'新NISA年360万投資！',dmg:88},
+  {word:'3000man',jp:'3000万円で配当生活',dmg:92},
+  {word:'100nen_life',jp:'人生100年時代を生きる',dmg:95},
+  {word:'1/x_rule',jp:'1/X分散ルール',dmg:90},
+  {word:'fire_at_45',jp:'45歳でFIREする！',dmg:98},
+  {word:'index_7pct',jp:'インデックス年率7%',dmg:95},
+  {word:'zxcvbn_fire',jp:'最短ルートでFIRE！',dmg:100},
+  {word:'kogane_1000man',jp:'まず1000万を貯めろ！',dmg:95},
+  {word:'invest_now_24',jp:'今すぐ投資を始めろ！24',dmg:102},
+  {word:'black_lion_9lives',jp:'ブラック学長に9つの命あり',dmg:108},
+  {word:'fire_7_24_365',jp:'FIRE達成で365日自由！',dmg:112},
+  {word:'zx_cogane_cv',jp:'行動なくして資産なし！',dmg:105},
+  {word:'bn_million_1',jp:'億り人への第一歩！',dmg:98},
+  {word:'fire_path_2025',jp:'2025年FIRE達成計画！',dmg:110},
+];
 
-    <!-- コントロール -->
-    <div class="controls">
-      <button class="ctrl-btn" id="restart-btn">↺ 次の名言 [Tab]</button>
-      <button class="ctrl-btn" id="bgm-btn">🎵 BGM: ON</button>
-    </div>
+// ── 商流拳ワード（学長名言・優先順序付き）──
+let shohouPriorityIdx=0;
+const SHOHOU_WORDS=[
+  // priority=trueは最初の商流拳で必ず出る
+  {word:'kyougajinseideichibanwakaihi',jp:'今日が人生で一番若い日！',dmg:95,priority:true},
+  {word:'shakkinnankasunjane',jp:'借金なんかすんじゃねえ！',dmg:90,priority:true},
+  {word:'jiyuunaseikatsu',jp:'自由な生活を手に入れる',dmg:90},
+  {word:'okanenobenkyou',jp:'お金の勉強をしよう',dmg:75},
+  {word:'fukugyoudejiyu',jp:'副業で自由を掴め',dmg:85},
+  {word:'koudounakunai',jp:'行動なくして自由なし',dmg:88},
+  {word:'fukurinomahou',jp:'複利の魔法を信じろ',dmg:85},
+  {word:'ribecitynikoi',jp:'リベシティに来い！',dmg:80},
+  {word:'okanehashudan',jp:'お金は手段であり目的じゃない',dmg:92},
+  {word:'koganeyamaisshoninoborouna',jp:'🏔️ 小金持ち山一緒に登ろうな！',dmg:90},
+  {word:'claudecodetsukaiya',jp:'💻 クロードコード使えや！',dmg:88},
+  {word:'hitoniaiya',jp:'🤝 人に会いや！',dmg:78},
+  {word:'osuhayareya',jp:'🔥 オスはやれや！',dmg:82},
+  {word:'tsureka',jp:'👥 つれか！',dmg:70},
+  {word:'joshinominasanhagu',jp:'🤗 女子の皆さんハグ！',dmg:84},
+];
 
-  </main>
+// ── 難易度 ──
+const DIFFICULTY_DEFS={
+  easy:  {label:'EASY',  hpMul:0.6,atkMul:0.6,intervalMul:1.6,playerHp:160,col:'#44ff88'},
+  normal:{label:'NORMAL',hpMul:1.0,atkMul:1.0,intervalMul:1.0,playerHp:100,col:'#FFD700'},
+  hard:  {label:'HARD',  hpMul:1.5,atkMul:1.5,intervalMul:0.65,playerHp:60,col:'#ff4444'},
+};
+let selectedDiff='normal';
 
-  <!-- 結果オーバーレイ -->
-  <div id="results" class="hidden">
-    <div class="results-card">
-      <h2>Result</h2>
-      <div class="result-stats">
-        <div class="stat">
-          <span class="stat-label">WPM</span>
-          <span class="stat-value" id="r-wpm">0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">正確率</span>
-          <span class="stat-value" id="r-acc">0%</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">最大コンボ</span>
-          <span class="stat-value" id="r-combo">0</span>
-        </div>
-      </div>
-      <button class="next-btn" id="next-btn">次の名言へ →</button>
-    </div>
-  </div>
+// ── ステージ定義（全5ステージ）──
+const STAGES_BASE=[
+  {
+    name:'毒キノコ山',enemyName:'毒キノコ男',
+    enemyHp:160,enemyAtk:10,atkInterval:420,wordCount:6,
+    wordLevel:[0,29],col:'#cc44ff',bgTop:'#0a0018',bgBot:'#150025',
+  },
+  {
+    name:'詐欺師アジト',enemyName:'悪徳詐欺師',
+    enemyHp:300,enemyAtk:15,atkInterval:340,wordCount:7,
+    wordLevel:[10,44],col:'#00ff88',bgTop:'#001800',bgBot:'#003300',
+  },
+  {
+    name:'保険地獄',enemyName:'鬼畜保険販売員',
+    enemyHp:450,enemyAtk:21,atkInterval:275,wordCount:8,
+    wordLevel:[25,59],col:'#ff4444',bgTop:'#0a0000',bgBot:'#200000',
+  },
+  {
+    name:'悪徳FP事務所',enemyName:'悪徳FPタカハシ',
+    enemyHp:620,enemyAtk:28,atkInterval:220,wordCount:9,
+    wordLevel:[40,74],col:'#00ccff',bgTop:'#001020',bgBot:'#002040',
+  },
+  {
+    name:'暗黒の頂上',enemyName:'ブラック学長',
+    enemyHp:820,enemyAtk:34,atkInterval:185,wordCount:10,
+    wordLevel:[65,119],col:'#ff0000',bgTop:'#000000',bgBot:'#100000',
+  },
+];
+const ENEMY_LINES=[
+  ['毒キノコが…溶ける…くっ','副業なんて…夢物語だよ…'],
+  ['詐欺…見抜かれただと…！','うまい話には…罠があったか…'],
+  ['保険の…見直しは…させん！','不要な保険料で…稼いでたのに…'],
+  ['完璧な手数料プランが…崩れた…','お客様の資産は…私の収益に…'],
+  ['学長の…力で…負けるとは…','複利の…真の力…恐るべし…！'],
+];
+let STAGES=STAGES_BASE;
+function applyDifficulty(diff){
+  const d=DIFFICULTY_DEFS[diff];
+  STAGES=STAGES_BASE.map(s=>({
+    ...s,
+    enemyHp:Math.round(s.enemyHp*d.hpMul),
+    enemyAtk:Math.round(s.enemyAtk*d.atkMul),
+    atkInterval:Math.round(s.atkInterval*d.intervalMul),
+  }));
+}
 
-  <!-- パーティクル -->
-  <canvas id="particle-canvas"></canvas>
+// ── パーティクル ──
+let pts=[],projs=[],dmgNums=[],enemyTypingShake=0;
+// ── ダメージ数字フロート ──
+function addDmgNum(x,y,text,color='#FFD700',big=false){
+  dmgNums.push({x,y,vy:-2.2-(big?1.5:0),text,color,life:big?75:50,maxLife:big?75:50,big});
+}
+function drawDmgNums(){
+  dmgNums=dmgNums.filter(d=>{
+    d.life--;d.y+=d.vy;d.vy*=0.93;
+    const a=Math.min(1,d.life/(d.maxLife*0.3))*Math.min(1,d.life/12);
+    ctx.save();ctx.globalAlpha=Math.max(0,a);
+    const sz=d.big?22+Math.max(0,(d.maxLife-d.life)/d.maxLife*12):14;
+    ctx.font=`bold ${sz}px monospace`;
+    ctx.textAlign='center';ctx.shadowBlur=d.big?18:8;ctx.shadowColor=d.color;
+    ctx.fillStyle=d.color;ctx.fillText(d.text,d.x,d.y);
+    ctx.shadowBlur=0;ctx.restore();
+    return d.life>0;
+  });
+}
+function addPt(x,y,vx,vy,life,color,size=4){pts.push({x,y,vx,vy,life,maxLife:life,color,size});}
+function coinBurst(x,y){
+  for(let i=0;i<18;i++){const a=Math.random()*Math.PI*2,s=Math.random()*10+2;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-4,rand(32,60),'#FFD700',rand(4,10));}
+  addPt(x,y,0,0,20,'#fff',90);
+}
+function hitBurst(x,y,col='#FFD700'){
+  for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,s=Math.random()*8+1;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-2,rand(20,36),col,rand(3,8));}
+  addPt(x,y,0,0,16,col,60);
+}
+function wrongBurst(x,y){
+  for(let i=0;i<10;i++){const a=Math.random()*Math.PI*2,s=Math.random()*5+1;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s,rand(14,28),'#4488ff',rand(2,6));}
+}
+function superBurst(x,y){
+  const cols=['#FFD700','#ff6600','#ff3300','#fff','#ffcc00','#ff9900','#ffee44'];
+  for(let i=0;i<80;i++){const a=Math.random()*Math.PI*2,s=Math.random()*18+5;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-10,rand(45,90),cols[i%cols.length],rand(4,14));}
+  // リング状エフェクト
+  for(let i=0;i<40;i++){const a=(i/40)*Math.PI*2,r=20;addPt(x+Math.cos(a)*r,y+Math.sin(a)*r,Math.cos(a)*12,Math.sin(a)*12,rand(30,55),'#FFD700',rand(3,7));}
+}
+function comboBurst(x,y,combo){
+  const n=Math.min(combo*4,60);const cols=['#FFD700','#ffffff','#ff9900'];
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*12+3;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-3,rand(25,50),cols[i%cols.length],rand(3,8));}
+}
+function rand(a,b){return Math.random()*(b-a)+a;}
+function lerp(a,b,t){return a+(b-a)*t;}
 
-  <!-- フッター -->
-  <footer>両学長 名言タイピング — powered by リベシティ</footer>
+function addProj(x,y,color){projs.push({x,y,tx:510,ty:185,color:color||'#FFD700'});}
+function updateDrawProjs(){
+  projs=projs.filter(p=>{
+    const dx=p.tx-p.x,dy=p.ty-p.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<16){coinBurst(p.tx,p.ty);hitBurst(p.tx-20,p.ty+15,p.color);return false;}
+    const spd=18;p.x+=dx/dist*spd;p.y+=dy/dist*spd;
+    addPt(p.x+(Math.random()-0.5)*4,p.y+(Math.random()-0.5)*4,(Math.random()-0.5)*0.5,(Math.random()-0.5)*0.5,10,p.color,2.5);
+    ctx.shadowBlur=22;ctx.shadowColor=p.color;
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y,8,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;return true;
+  });
+}
+function updatePts(){pts=pts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.vx*=0.96;p.life--;return p.life>0;});}
+function drawPts(){
+  pts.forEach(p=>{
+    const a=p.life/p.maxLife;ctx.globalAlpha=a;
+    if(p.size>30){ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.shadowBlur=8;ctx.shadowColor=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*(1-a)*0.8,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;}
+    else{ctx.shadowBlur=6;ctx.shadowColor=p.color;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
+  });
+  ctx.globalAlpha=1;
+}
 
-  <script src="js/quotes.js"></script>
-  <script src="js/sounds.js"></script>
-  <script src="js/game.js"></script>
+// ── 画面エフェクト ──
+let shakeX=0,shakeY=0,shakePow=0;
+let hpBarFlash=0,hpLerpSpeed=0.10;
+let flashA=0,flashC='#fff';
+let zoomScale=1,zoomTargetScale=1,zoomCX=W/2,zoomCY=H/2;
+let lightningTimer=0;
+function shake(p){shakePow=Math.max(shakePow,p);}
+function flash(c,a){flashC=c;flashA=a;}
+function updateFX(){
+  if(shakePow>0.3){shakeX=(Math.random()-0.5)*shakePow;shakeY=(Math.random()-0.5)*shakePow;shakePow*=0.60;}
+  else{shakeX=0;shakeY=0;shakePow=0;}
+  if(flashA>0)flashA-=0.07;
+  zoomScale+=(zoomTargetScale-zoomScale)*0.1;
+  if(Math.abs(zoomScale-zoomTargetScale)<0.001)zoomScale=zoomTargetScale;
+  if(lightningTimer>0)lightningTimer--;
+}
+function drawLightning(x1,y1,x2,y2,alpha=1){
+  ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='#88aaff';ctx.lineWidth=2;ctx.shadowBlur=12;ctx.shadowColor='#4466ff';
+  ctx.beginPath();ctx.moveTo(x1,y1);
+  let cx=x1,cy=y1;const segs=8;
+  for(let i=1;i<segs;i++){const t=i/segs;const nx=lerp(x1,x2,t)+(Math.random()-0.5)*30;const ny=lerp(y1,y2,t)+(Math.random()-0.5)*30;ctx.lineTo(nx,ny);cx=nx;cy=ny;}
+  ctx.lineTo(x2,y2);ctx.stroke();ctx.shadowBlur=0;ctx.restore();
+}
+
+// ── ゲーム状態 ──
+let shohouCount=0;
+let G={
+  phase:'title',stageIdx:0,
+  playerHp:100,playerMaxHp:100,
+  enemyHp:0,enemyMaxHp:0,
+  score:0,combo:0,comboTimer:0,comboMax:0,
+  currentWord:null,typedIndex:0,wrongFlash:0,
+  wordQueue:[],wordsLeft:0,atkTimer:0,
+  hitstop:0,playerHurt:0,enemyHurt:0,playerAtk:0,
+  dispPlayerHp:100,dispEnemyHp:0,frameN:0,
+  superGauge:0,superActive:0,superFlash:0,
+  isShohouMode:false,shohouWord:null,
+  wordStartTime:0,wpmHistory:[],currentWpm:0,
+  prevPhase:'fight',resumeCountdown:0,
+  stageNoDamage:true,shohouUsed:false,
+  screenFlashTimer:0,
+};
+
+// ── ステージ開始 ──
+function startStage(idx){
+  applyDifficulty(selectedDiff);
+  const st=STAGES[idx];const dd=DIFFICULTY_DEFS[selectedDiff];
+  G.stageIdx=idx;G.enemyHp=st.enemyHp;G.enemyMaxHp=st.enemyHp;G.dispEnemyHp=st.enemyHp;
+  G.atkTimer=st.atkInterval;G.combo=0;G.comboTimer=0;G.comboMax=0;
+  G.wrongFlash=0;G.hitstop=0;G.playerHurt=0;G.enemyHurt=0;G.playerAtk=0;
+  G.superGauge=0;G.superActive=0;G.superFlash=0;G.isShohouMode=false;G.shohouWord=null;
+  G.wpmHistory=[];G.currentWpm=0;G.stageNoDamage=true;G.shohouUsed=false;
+  const [lo,hi]=st.wordLevel;
+  const pool=[...WORD_DB].slice(lo,hi+1).sort(()=>Math.random()-0.5);
+  G.wordQueue=pool.slice(0,st.wordCount).sort((a,b)=>a.word.length-b.word.length);
+  G.wordsLeft=G.wordQueue.length;
+  nextWord();G.phase='fight';
+  G.playerHp=dd.playerHp;G.playerMaxHp=dd.playerHp;G.dispPlayerHp=dd.playerHp;
+  stopChip();setBGMPitch(1.0);startBGM();SFX.fight();
+  if(idx===4)unlockAchievement('stage5');
+}
+
+function nextWord(){
+  if(G.wordQueue.length===0){
+    const st=STAGES[G.stageIdx];const [lo,hi]=st.wordLevel;
+    const pool=[...WORD_DB].slice(lo,hi+1).sort(()=>Math.random()-0.5);
+    G.wordQueue=pool.slice(0,Math.min(6,pool.length));
+  }
+  G.currentWord=G.wordQueue.shift();G.typedIndex=0;G.wrongFlash=0;
+  G.wordStartTime=performance.now();G.isShohouMode=false;
+}
+
+function startShohouMode(){
+  if(G.superGauge<100||G.superActive>0)return;
+  const priorities=SHOHOU_WORDS.filter(w=>w.priority);
+  let sw;
+  if(shohouPriorityIdx<priorities.length){
+    sw=priorities[shohouPriorityIdx++];
+  }else{
+    const rest=SHOHOU_WORDS.filter(w=>!w.priority);
+    sw=rest[Math.floor(Math.random()*rest.length)];
+  }
+  G.isShohouMode=true;G.shohouWord=sw;G.typedIndex=0;G.superActive=1;
+}
+
+// ── キャラクター描画：ライオン（学長）──
+function drawLion(x,y,state='idle'){
+  ctx.save();ctx.translate(x,y);
+  const t=G.frameN;
+  const bob=state==='idle'?Math.sin(t*0.06)*2:0;
+  const atkOff=state==='atk'?20:0;ctx.translate(atkOff,0);
+  ctx.fillStyle='rgba(0,0,0,0.28)';ctx.beginPath();ctx.ellipse(0,40,24,7,0,0,Math.PI*2);ctx.fill();
+  const bodyG=ctx.createLinearGradient(-14,-40,14,-40);
+  bodyG.addColorStop(0,'#1a1a3a');bodyG.addColorStop(0.5,'#2a2a5a');bodyG.addColorStop(1,'#1a1a3a');
+  ctx.fillStyle=bodyG;ctx.beginPath();ctx.roundRect(-14,-52+bob,28,56,4);ctx.fill();
+  ctx.fillStyle='#FFD700';ctx.beginPath();ctx.moveTo(-3,-50+bob);ctx.lineTo(3,-50+bob);ctx.lineTo(2,-18+bob);ctx.lineTo(0,-12+bob);ctx.lineTo(-2,-18+bob);ctx.closePath();ctx.fill();
+  const armSwing=state==='atk'?-0.5:Math.sin(t*0.06)*0.12;
+  ctx.strokeStyle='#1a1a3a';ctx.lineWidth=11;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-12,-42+bob);ctx.lineTo(-21+Math.cos(armSwing)*8,-28+Math.sin(armSwing)*4+bob);ctx.stroke();
+  const rArmX=state==='atk'?30:20-Math.cos(armSwing)*4;
+  const rArmY=state==='atk'?-48:(-28-Math.sin(armSwing)*4)+bob;
+  ctx.beginPath();ctx.moveTo(12,-42+bob);ctx.lineTo(rArmX,rArmY+(state==='atk'?0:bob));ctx.stroke();
+  if(state==='atk'){ctx.shadowBlur=20;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(rArmX,rArmY,7,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
+  const legSwing=Math.sin(t*0.12)*5;
+  ctx.strokeStyle='#111128';ctx.lineWidth=10;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-7,4+bob);ctx.lineTo(-8+legSwing,26+bob);ctx.lineTo(-6+legSwing,40+bob);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(7,4+bob);ctx.lineTo(8-legSwing,26+bob);ctx.lineTo(6-legSwing,40+bob);ctx.stroke();
+  ctx.translate(0,-62+bob);
+  ctx.shadowBlur=8;ctx.shadowColor='#bb7700';ctx.fillStyle='#d88c18';
+  for(let i=0;i<13;i++){const a=(i/13)*Math.PI*2,r=20;ctx.beginPath();ctx.ellipse(Math.cos(a)*r,Math.sin(a)*r,8,5.5,a,0,Math.PI*2);ctx.fill();}
+  ctx.shadowBlur=0;ctx.fillStyle='#bb7010';
+  for(let i=0;i<12;i++){const a=(i/12)*Math.PI*2+0.26,r=17;ctx.beginPath();ctx.ellipse(Math.cos(a)*r,Math.sin(a)*r,5.5,4,a,0,Math.PI*2);ctx.fill();}
+  const fg=ctx.createRadialGradient(-3,-4,1,0,0,18);
+  fg.addColorStop(0,'#f5c878');fg.addColorStop(0.55,'#e8a850');fg.addColorStop(1,'#c88830');
+  ctx.fillStyle=fg;ctx.beginPath();ctx.ellipse(0,0,17,18,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,140,80,0.22)';ctx.beginPath();ctx.ellipse(-9,4,6,4,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(9,4,6,4,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#f0d090';ctx.beginPath();ctx.ellipse(0,7,9,8,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#3a1200';ctx.beginPath();ctx.ellipse(0,1,5.5,4,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,180,120,0.45)';ctx.beginPath();ctx.ellipse(-1.5,0,1.5,0.8,0,0,Math.PI*2);ctx.fill();
+  const blinkH=state==='hurt'?0.3:1;
+  ctx.fillStyle='#fffbf0';ctx.beginPath();ctx.ellipse(-7,-7,5.5,5*blinkH,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(7,-7,5.5,5*blinkH,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#7a3800';ctx.beginPath();ctx.ellipse(-7,-7,4,3.5*blinkH,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(7,-7,4,3.5*blinkH,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#100600';ctx.beginPath();ctx.ellipse(-7,-7,2.2,2.8*blinkH,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(7,-7,2.2,2.8*blinkH,0,0,Math.PI*2);ctx.fill();
+  if(blinkH>0.5){ctx.fillStyle='rgba(255,255,255,0.95)';ctx.beginPath();ctx.ellipse(-8,-8.5,1.8,1.4,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(8,-8.5,1.8,1.4,0,0,Math.PI*2);ctx.fill();}
+  ctx.strokeStyle='#3a1a00';ctx.lineWidth=2.2;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-12,-12);ctx.lineTo(-2,-14);ctx.stroke();ctx.beginPath();ctx.moveTo(2,-14);ctx.lineTo(12,-12);ctx.stroke();
+  ctx.strokeStyle='#3a1800';ctx.lineWidth=1.8;
+  if(state==='atk'||state==='win'){ctx.beginPath();ctx.moveTo(-8,10);ctx.quadraticCurveTo(0,16,8,10);ctx.stroke();}
+  else{ctx.beginPath();ctx.moveTo(-5,11);ctx.quadraticCurveTo(0,14,5,11);ctx.stroke();}
+  ctx.strokeStyle='rgba(215,175,100,0.7)';ctx.lineWidth=1;
+  [-1,0,1].forEach(i=>{ctx.beginPath();ctx.moveTo(-8,5+i*3);ctx.lineTo(-22,4+i*4.5);ctx.stroke();ctx.beginPath();ctx.moveTo(8,5+i*3);ctx.lineTo(22,4+i*4.5);ctx.stroke();});
+  ctx.fillStyle='#d08818';ctx.beginPath();ctx.ellipse(-14,-16,8,9,0.3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(14,-16,8,9,-0.3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ff9090';ctx.beginPath();ctx.ellipse(-14,-16,4.5,6,0.3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(14,-16,4.5,6,-0.3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#FFD700';ctx.shadowBlur=6;ctx.shadowColor='#FFD700';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText('¥',0,-11);ctx.shadowBlur=0;
+  ctx.restore();
+}
+
+// ── Stage1敵：毒キノコ ──
+function drawKinoko(x,y,state='idle',col='#cc44ff'){
+  ctx.save();ctx.translate(x,y);
+  const t=G.frameN;const bob=state==='idle'?Math.sin(t*0.07+1)*2:0;
+  const hurtOff=state==='hurt'?10:0;ctx.translate(-hurtOff,0);
+  ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(0,38,22,6,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ddaaff';ctx.beginPath();ctx.roundRect(-11,-8+bob,22,48,5);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.12)';ctx.beginPath();ctx.roundRect(-5,-4+bob,4,42,2);ctx.fill();
+  ctx.shadowBlur=14;ctx.shadowColor=col;ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(0,-18+bob,30,20,0,Math.PI,0);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,255,255,0.55)';
+  [[-12,-20],[-4,-26],[8,-24],[14,-18],[0,-14]].forEach(([px,py])=>{ctx.beginPath();ctx.arc(px,py+bob,4,0,Math.PI*2);ctx.fill();});
+  ctx.fillStyle='#ffe0ff';ctx.beginPath();ctx.ellipse(0,2+bob,13,14,0,0,Math.PI*2);ctx.fill();
+  if(state==='ko'){
+    ctx.fillStyle='#555';ctx.beginPath();ctx.arc(-4,-1+bob,3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(4,-1+bob,3,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,8+bob,4,0.2,Math.PI-0.2);ctx.stroke();
+  }else{
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(-4,-1+bob,3.5,3,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(4,-1+bob,3.5,3,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#220033';ctx.beginPath();ctx.ellipse(-4,-1+bob,2,2,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(4,-1+bob,2,2,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#440033';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-7,-5+bob);ctx.lineTo(-1,-7+bob);ctx.stroke();ctx.beginPath();ctx.moveTo(1,-7+bob);ctx.lineTo(7,-5+bob);ctx.stroke();
+    ctx.strokeStyle='#440033';ctx.lineWidth=1.8;
+    if(state==='atk'){ctx.beginPath();ctx.moveTo(-5,7+bob);ctx.lineTo(0,11+bob);ctx.lineTo(5,7+bob);ctx.stroke();}
+    else{ctx.beginPath();ctx.moveTo(-4,8+bob);ctx.lineTo(4,8+bob);ctx.stroke();}
+  }
+  ctx.restore();
+}
+
+// ── Stage2敵：詐欺師 ──
+function drawSagi(x,y,state='idle'){
+  ctx.save();ctx.translate(x,y);
+  const t=G.frameN;const bob=state==='idle'?Math.sin(t*0.065)*2:0;
+  const hurtOff=state==='hurt'?10:0;ctx.translate(-hurtOff,0);
+  // 影
+  ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(0,40,22,6,0,0,Math.PI*2);ctx.fill();
+  // フード付きマント
+  const capeG=ctx.createLinearGradient(-20,-60,20,40);
+  capeG.addColorStop(0,'#0a1a08');capeG.addColorStop(0.5,'#112211');capeG.addColorStop(1,'#0a1a08');
+  ctx.fillStyle=capeG;ctx.beginPath();ctx.moveTo(-22,-40+bob);ctx.lineTo(-18,42+bob);ctx.lineTo(18,42+bob);ctx.lineTo(22,-40+bob);ctx.closePath();ctx.fill();
+  // お金マーク飾り
+  ctx.fillStyle='rgba(0,255,100,0.3)';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText('$',0,-22+bob);
+  // フード
+  ctx.shadowBlur=10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle='#0d2a0d';ctx.beginPath();ctx.ellipse(0,-50+bob,18,22,0,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  // 顔（影に隠れた不気味な顔）
+  ctx.fillStyle='#1a3a1a';ctx.beginPath();ctx.ellipse(0,-50+bob,13,14,0,0,Math.PI*2);ctx.fill();
+  // 光る緑の目
+  const eyeGlow=Math.sin(t*0.1)*0.4+0.7;
+  ctx.shadowBlur=14;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=`rgba(0,255,100,${eyeGlow})`;
+  ctx.beginPath();ctx.ellipse(-5,-52+bob,3.5,3,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(5,-52+bob,3.5,3,0,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+  // ニヤリとした口
+  if(state==='ko'){ctx.strokeStyle='#446644';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-5,-44+bob);ctx.lineTo(5,-44+bob);ctx.stroke();}
+  else{ctx.strokeStyle='#00cc44';ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(-6,-44+bob);ctx.quadraticCurveTo(0,-48+bob,6,-44+bob);ctx.stroke();}
+  // 腕（ブリーフケースを持つ）
+  ctx.strokeStyle='#0d2a0d';ctx.lineWidth=10;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-16,-30+bob);ctx.lineTo(-28,-10+bob);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(16,-30+bob);ctx.lineTo(state==='atk'?32:26,-10+bob);ctx.stroke();
+  // ブリーフケース
+  ctx.fillStyle='#224422';ctx.strokeStyle='#00aa44';ctx.lineWidth=1.5;
+  ctx.shadowBlur=state==='atk'?12:4;ctx.shadowColor='#00ff88';
+  ctx.beginPath();ctx.roundRect(-36,-18+bob,16,12,3);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle='#00cc44';ctx.font='bold 7px monospace';ctx.textAlign='center';ctx.fillText('詐',-28,-10+bob);
+  // KO時：目がバツに
+  if(state==='ko'){
+    ctx.strokeStyle='#336633';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(-7,-55+bob);ctx.lineTo(-3,-49+bob);ctx.stroke();ctx.beginPath();ctx.moveTo(-3,-55+bob);ctx.lineTo(-7,-49+bob);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(3,-55+bob);ctx.lineTo(7,-49+bob);ctx.stroke();ctx.beginPath();ctx.moveTo(7,-55+bob);ctx.lineTo(3,-49+bob);ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── Stage3敵：保険販売員 ──
+function drawHoken(x,y,state='idle'){
+  ctx.save();ctx.translate(x,y);const t=G.frameN;const bob=state==='idle'?Math.sin(t*0.06)*1.5:0;
+  const hurtOff=state==='hurt'?10:0;ctx.translate(-hurtOff,0);
+  ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(0,40,20,6,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#222';ctx.beginPath();ctx.roundRect(-10,24+bob,9,18,2);ctx.fill();ctx.beginPath();ctx.roundRect(1,24+bob,9,18,2);ctx.fill();
+  ctx.fillStyle='#1c2a38';ctx.beginPath();ctx.roundRect(-14,-16+bob,28,42,4);ctx.fill();
+  ctx.fillStyle='#cc2200';ctx.beginPath();ctx.moveTo(-2,-14+bob);ctx.lineTo(2,-14+bob);ctx.lineTo(1,8+bob);ctx.lineTo(0,12+bob);ctx.lineTo(-1,8+bob);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#442222';ctx.shadowBlur=4;ctx.shadowColor='#cc3300';ctx.beginPath();ctx.roundRect(12,-4+bob,14,12,2);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#cc3300';ctx.font='bold 5px sans-serif';ctx.textAlign='center';ctx.fillText('悪徳',19,5+bob);
+  ctx.strokeStyle='#1c2a38';ctx.lineWidth=10;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-12,-12+bob);ctx.lineTo(-21,-2+bob);ctx.stroke();ctx.beginPath();ctx.moveTo(12,-12+bob);ctx.lineTo(state==='atk'?28:21,-2+bob);ctx.stroke();
+  ctx.translate(0,-26+bob);ctx.fillStyle='#c8c0d0';ctx.beginPath();ctx.ellipse(0,0,12,14,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#111';ctx.beginPath();ctx.ellipse(0,-8,12,8,0,Math.PI,0);ctx.fill();
+  ctx.strokeStyle='#333';ctx.lineWidth=1.5;ctx.beginPath();ctx.rect(-9,-4,7,5);ctx.stroke();ctx.beginPath();ctx.rect(2,-4,7,5);ctx.stroke();ctx.beginPath();ctx.moveTo(-2,-1.5);ctx.lineTo(2,-1.5);ctx.stroke();
+  const bH=state==='ko'?0.3:1;ctx.fillStyle='#220000';ctx.fillRect(-7,-3,4,bH*3);ctx.fillRect(3,-3,4,bH*3);ctx.fillStyle='#ff0000';ctx.fillRect(-6,-3,1.5,bH*2.5);ctx.fillRect(4,-3,1.5,bH*2.5);
+  ctx.strokeStyle='#111';ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(-10,-6);ctx.lineTo(-2,-8);ctx.stroke();ctx.beginPath();ctx.moveTo(2,-8);ctx.lineTo(10,-6);ctx.stroke();
+  ctx.strokeStyle='#886688';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-4,9);ctx.quadraticCurveTo(0,11,4,9);ctx.stroke();
+  ctx.restore();
+}
+
+// ── Stage4敵：悪徳FP ──
+function drawFP(x,y,state='idle'){
+  ctx.save();ctx.translate(x,y);
+  const t=G.frameN;const bob=state==='idle'?Math.sin(t*0.055)*1.8:0;
+  const hurtOff=state==='hurt'?10:0;ctx.translate(-hurtOff,0);
+  ctx.fillStyle='rgba(0,0,0,0.22)';ctx.beginPath();ctx.ellipse(0,40,21,6,0,0,Math.PI*2);ctx.fill();
+  // 脚
+  ctx.fillStyle='#112233';ctx.beginPath();ctx.roundRect(-10,24+bob,9,18,2);ctx.fill();ctx.beginPath();ctx.roundRect(1,24+bob,9,18,2);ctx.fill();
+  // 体（高級スーツ）
+  const suitG=ctx.createLinearGradient(-15,-18,15,26);
+  suitG.addColorStop(0,'#001a2a');suitG.addColorStop(0.5,'#002a3a');suitG.addColorStop(1,'#001a2a');
+  ctx.fillStyle=suitG;ctx.beginPath();ctx.roundRect(-14,-18+bob,28,44,5);ctx.fill();
+  // シャツ
+  ctx.fillStyle='#eef5ff';ctx.beginPath();ctx.moveTo(-6,-16+bob);ctx.lineTo(6,-16+bob);ctx.lineTo(5,14+bob);ctx.lineTo(-5,14+bob);ctx.closePath();ctx.fill();
+  // シアンネクタイ
+  ctx.fillStyle='#00aacc';ctx.beginPath();ctx.moveTo(-2,-14+bob);ctx.lineTo(2,-14+bob);ctx.lineTo(2.5,10+bob);ctx.lineTo(0,14+bob);ctx.lineTo(-2.5,10+bob);ctx.closePath();ctx.fill();
+  // 腕
+  ctx.strokeStyle='#001a2a';ctx.lineWidth=10;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-12,-12+bob);ctx.lineTo(-22,-0+bob);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(12,-12+bob);ctx.lineTo(state==='atk'?30:22,-0+bob);ctx.stroke();
+  // 書類（右手に持つ）
+  ctx.shadowBlur=state==='atk'?14:5;ctx.shadowColor='#00ccff';
+  ctx.fillStyle='#eef8ff';ctx.strokeStyle='#00aacc';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.roundRect(20,-12+bob,18,24,3);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  // 書類に不正な数字
+  ctx.fillStyle='#cc0000';ctx.font='bold 5px monospace';ctx.textAlign='center';
+  ctx.fillText('99%',29,-6+bob);ctx.fillText('手数料',29,2+bob);ctx.fillText('爆増！',29,8+bob);
+  // 顔
+  ctx.translate(0,-30+bob);
+  ctx.fillStyle='#d4c8c0';ctx.beginPath();ctx.ellipse(0,0,13,15,0,0,Math.PI*2);ctx.fill();
+  // 薄い前髪
+  ctx.fillStyle='#334455';ctx.beginPath();ctx.ellipse(0,-12,13,7,0,Math.PI,0);ctx.fill();
+  // 眼鏡
+  ctx.strokeStyle='#00aacc';ctx.lineWidth=1.5;
+  ctx.strokeRect(-10,-4,8,6);ctx.strokeRect(2,-4,8,6);ctx.beginPath();ctx.moveTo(-2,-1);ctx.lineTo(2,-1);ctx.stroke();
+  const eH=state==='ko'?0.3:1;
+  ctx.fillStyle='#001122';ctx.fillRect(-8.5,-3,5,eH*4);ctx.fillRect(3.5,-3,5,eH*4);
+  ctx.fillStyle='#00ccff';ctx.fillRect(-7.5,-3,1.5,eH*3);ctx.fillRect(4.5,-3,1.5,eH*3);
+  // 眉（上がり眉で嫌な顔）
+  ctx.strokeStyle='#334455';ctx.lineWidth=2;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-10,-7);ctx.lineTo(-3,-9);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(3,-9);ctx.lineTo(10,-7);ctx.stroke();
+  // 口（ニヤリ）
+  ctx.strokeStyle='#998877';ctx.lineWidth=1.6;
+  if(state==='ko'){ctx.beginPath();ctx.moveTo(-5,8);ctx.lineTo(5,8);ctx.stroke();}
+  else{ctx.beginPath();ctx.moveTo(-6,7);ctx.quadraticCurveTo(0,12,6,7);ctx.stroke();}
+  ctx.restore();
+}
+
+// ── Stage5敵：ブラック学長 ──
+function drawDarkLion(x,y,state='idle'){
+  ctx.save();ctx.translate(x,y);const t=G.frameN;const bob=Math.sin(t*0.07)*2;
+  const hurtOff=state==='hurt'?10:0;ctx.translate(-hurtOff,0);
+  ctx.fillStyle='rgba(0,0,0,0.3)';ctx.beginPath();ctx.ellipse(0,40,27,7,0,0,Math.PI*2);ctx.fill();
+  for(let i=0;i<3;i++){const pulse=Math.sin(t*0.12+i*1.2)*8;ctx.shadowBlur=22+i*7;ctx.shadowColor='#ff0000';ctx.strokeStyle=`rgba(${220-i*40},0,0,${0.5-i*0.12})`;ctx.lineWidth=2.5-i*0.5;ctx.globalAlpha=0.6-i*0.15;ctx.beginPath();ctx.ellipse(0,-30,22+pulse,55+pulse,0,0,Math.PI*2);ctx.stroke();}
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
+  ctx.fillStyle='#080008';ctx.beginPath();ctx.roundRect(-16,-58+bob,32,60,4);ctx.fill();
+  ctx.fillStyle='#ff0000';ctx.beginPath();ctx.moveTo(-3,-56+bob);ctx.lineTo(3,-56+bob);ctx.lineTo(2,-18+bob);ctx.lineTo(0,-12+bob);ctx.lineTo(-2,-18+bob);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#080008';ctx.lineWidth=12;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-14,-46+bob);ctx.lineTo(-23,-29+bob);ctx.stroke();ctx.beginPath();ctx.moveTo(14,-46+bob);ctx.lineTo(23,-29+bob);ctx.stroke();
+  ctx.strokeStyle='#050005';ctx.lineWidth=11;ctx.beginPath();ctx.moveTo(-8,2+bob);ctx.lineTo(-9,24+bob);ctx.lineTo(-7,40+bob);ctx.stroke();ctx.beginPath();ctx.moveTo(8,2+bob);ctx.lineTo(9,24+bob);ctx.lineTo(7,40+bob);ctx.stroke();
+  ctx.translate(0,-68+bob);
+  ctx.shadowBlur=16;ctx.shadowColor='#ff0000';ctx.fillStyle='#1a0000';
+  for(let i=0;i<13;i++){const a=(i/13)*Math.PI*2,r=22;ctx.beginPath();ctx.ellipse(Math.cos(a)*r,Math.sin(a)*r,9.5,6.5,a,0,Math.PI*2);ctx.fill();}
+  ctx.shadowBlur=0;ctx.fillStyle='#0a0000';
+  for(let i=0;i<12;i++){const a=(i/12)*Math.PI*2+0.26,r=18;ctx.beginPath();ctx.ellipse(Math.cos(a)*r,Math.sin(a)*r,6.5,4.5,a,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle='#3a2a1a';ctx.beginPath();ctx.ellipse(0,0,17,19,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#2a1808';ctx.beginPath();ctx.ellipse(0,5,10,9,0,0,Math.PI*2);ctx.fill();
+  const bH2=state==='ko'?0.3:1;ctx.shadowBlur=16;ctx.shadowColor='#ff0000';ctx.fillStyle='#ff0000';ctx.beginPath();ctx.ellipse(-8,-7,6,5*bH2,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(8,-7,6,5*bH2,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffcc00';ctx.beginPath();ctx.ellipse(-8,-7,2.8,2.2*bH2,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(8,-7,2.8,2.2*bH2,0,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;ctx.strokeStyle='#220000';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-13,-13);ctx.lineTo(-2,-10);ctx.stroke();ctx.beginPath();ctx.moveTo(2,-10);ctx.lineTo(13,-13);ctx.stroke();
+  ctx.strokeStyle='#440000';ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(-7,9);ctx.lineTo(0,14);ctx.lineTo(7,9);ctx.stroke();ctx.fillStyle='#fff';ctx.fillRect(-5,10,3,5);ctx.fillRect(3,10,3,5);
+  ctx.shadowBlur=10;ctx.shadowColor='#ff0000';ctx.fillStyle='#ff0000';ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.fillText('BLACK',0,-11);ctx.shadowBlur=0;
+  ctx.restore();
+}
+
+function drawEnemy(x,y,state){
+  if(G.stageIdx===0)drawKinoko(x,y,state,STAGES[0].col);
+  else if(G.stageIdx===1)drawSagi(x,y,state);
+  else if(G.stageIdx===2)drawHoken(x,y,state);
+  else if(G.stageIdx===3)drawFP(x,y,state);
+  else drawDarkLion(x,y,state);
+}
+
+// ── HUD ──
+function drawHUD(){
+  ctx.fillStyle='rgba(0,0,0,0.82)';ctx.fillRect(0,0,W,48);
+  G.dispPlayerHp=lerp(G.dispPlayerHp,G.playerHp,0.12);
+  const p1r=G.dispPlayerHp/G.playerMaxHp;
+  ctx.fillStyle='#1a0000';ctx.fillRect(10,9,220,14);
+  const hpGrad=ctx.createLinearGradient(10,0,230,0);
+  hpGrad.addColorStop(0,`hsl(${p1r*110},100%,${33+p1r*17}%)`);hpGrad.addColorStop(1,`hsl(${p1r*110},80%,${40+p1r*15}%)`);
+  ctx.fillStyle=hpGrad;ctx.fillRect(10,9,220*p1r,14);
+  ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;ctx.strokeRect(10,9,220,14);
+  ctx.fillStyle='#FFD700';ctx.font='bold 9px monospace';ctx.textAlign='left';ctx.shadowBlur=5;ctx.shadowColor='#FFD700';
+  ctx.fillText('両学長',14,8);ctx.shadowBlur=0;
+  // HPバー「どかっ」演出：hpLerpSpeedを一時的に上げて一気に落とす
+  if(hpLerpSpeed>0.10){hpLerpSpeed=Math.max(0.10,hpLerpSpeed-0.018);}
+  G.dispEnemyHp=lerp(G.dispEnemyHp,G.enemyHp,hpLerpSpeed);
+  if(hpBarFlash>0)hpBarFlash--;
+  const p2r=Math.max(0,G.dispEnemyHp/G.enemyMaxHp);
+  const st=STAGES[G.stageIdx];
+  ctx.fillStyle='#1a0000';ctx.fillRect(W-230,9,220,14);
+  const e2Grad=ctx.createLinearGradient(W-230,0,W-10,0);
+  e2Grad.addColorStop(0,`hsl(${p2r*100},100%,${33+p2r*17}%)`);e2Grad.addColorStop(1,`hsl(${p2r*100},80%,${40+p2r*15}%)`);
+  ctx.fillStyle=e2Grad;ctx.fillRect(W-230+(1-p2r)*220,9,220*p2r,14);
+  // 「どかっ」フラッシュ：HPバー全体が白く光る
+  if(hpBarFlash>0){
+    const fa=hpBarFlash/30;
+    ctx.fillStyle=`rgba(255,220,50,${fa*0.7})`;ctx.fillRect(W-230,9,220,14);
+    ctx.shadowBlur=18*fa;ctx.shadowColor='#FFD700';
+    ctx.strokeStyle=`rgba(255,215,0,${fa})`;ctx.lineWidth=2.5;ctx.strokeRect(W-230,9,220,14);
+    ctx.shadowBlur=0;
+  }else{
+    ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;ctx.strokeRect(W-230,9,220,14);
+  }
+  ctx.fillStyle=st.col;ctx.font='bold 9px monospace';ctx.textAlign='right';ctx.shadowBlur=5;ctx.shadowColor=st.col;
+  ctx.fillText(st.enemyName,W-14,8);ctx.shadowBlur=0;
+  ctx.fillStyle='#fff';ctx.font='bold 17px monospace';ctx.textAlign='center';ctx.shadowBlur=10;ctx.shadowColor='#FFD700';
+  ctx.fillText(`${G.score}`,W/2,25);ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,215,0,0.5)';ctx.font='8px monospace';ctx.fillText('SCORE',W/2,36);
+  const dd=DIFFICULTY_DEFS[selectedDiff];
+  ctx.fillStyle=dd.col;ctx.font='bold 8px monospace';ctx.textAlign='left';ctx.fillText(`[${dd.label}]`,14,30);
+  ctx.fillStyle='rgba(200,180,255,0.55)';ctx.font='8px monospace';ctx.fillText(`STAGE ${G.stageIdx+1}/5`,58,30);
+  if(G.currentWpm>0){ctx.fillStyle='rgba(100,220,255,0.85)';ctx.font='bold 9px monospace';ctx.textAlign='right';ctx.fillText(`WPM:${G.currentWpm}`,W-14,30);}
+  if(G.combo>=2){
+    const blk=Math.floor(G.frameN/5)%2===0;
+    ctx.shadowBlur=16+(G.combo>=10?8:0);ctx.shadowColor='#FFD700';
+    ctx.fillStyle=blk?'#FFD700':'#fff';
+    ctx.font=`bold ${16+Math.min(G.combo,12)}px monospace`;ctx.textAlign='left';
+    ctx.fillText(`${G.combo} COMBO!!`,14,H-18);ctx.shadowBlur=0;
+  }
+  const atkR=G.atkTimer/STAGES[G.stageIdx].atkInterval;const barW=160;
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(W/2-barW/2,39,barW,6);
+  const barCol=atkR>0.4?`hsl(${atkR*120},100%,45%)`:'#ff2222';
+  ctx.fillStyle=barCol;ctx.fillRect(W/2-barW/2,39,barW*atkR,6);
+  ctx.fillStyle='rgba(255,100,100,0.45)';ctx.font='7px monospace';ctx.textAlign='center';ctx.fillText('▼敵の攻撃まで',W/2,38);
+  const gx=10,gy=H-42,gw=210,gh=15;const gRatio=G.superGauge/100;const isFull=G.superGauge>=100;
+  ctx.fillStyle='rgba(0,0,0,0.75)';ctx.beginPath();ctx.roundRect(gx,gy,gw,gh,5);ctx.fill();
+  if(gRatio>0){
+    const gGrad=ctx.createLinearGradient(gx,0,gx+gw,0);
+    if(isFull){const pulse=Math.sin(G.frameN*0.18)*0.25+0.75;gGrad.addColorStop(0,'#ff6600');gGrad.addColorStop(0.5,'#ffcc00');gGrad.addColorStop(1,'#ff3300');ctx.shadowBlur=14*pulse;ctx.shadowColor='#ff8800';}
+    else{gGrad.addColorStop(0,'#0066ff');gGrad.addColorStop(1,'#00ccff');ctx.shadowBlur=5;ctx.shadowColor='#0088ff';}
+    ctx.fillStyle=gGrad;ctx.beginPath();ctx.roundRect(gx,gy,gw*gRatio,gh,5);ctx.fill();ctx.shadowBlur=0;
+  }
+  ctx.strokeStyle=isFull?'#ffaa00':'rgba(100,180,255,0.55)';ctx.lineWidth=1.2;ctx.beginPath();ctx.roundRect(gx,gy,gw,gh,5);ctx.stroke();
+  ctx.textAlign='left';ctx.font='bold 9px monospace';
+  if(isFull){const blink=Math.floor(G.frameN/8)%2===0;ctx.fillStyle=blink?'#ffcc00':'#fff';ctx.shadowBlur=10;ctx.shadowColor='#ff8800';ctx.fillText('商流拳！ [Space]',gx+5,gy+11);ctx.shadowBlur=0;}
+  else{ctx.fillStyle='rgba(120,180,255,0.85)';ctx.fillText(`商流拳 ${Math.floor(gRatio*100)}%`,gx+5,gy+11);}
+}
+
+// ── ワードパネル ──
+function drawWordPanel(){
+  const word=G.isShohouMode?G.shohouWord:G.currentWord;
+  if(!word)return;
+  const pw=460,ph=G.isShohouMode?130:110,px=W/2-pw/2,py=H-138-(G.isShohouMode?15:0);
+  ctx.fillStyle='rgba(0,0,20,0.90)';
+  ctx.shadowBlur=G.isShohouMode?14:10;
+  ctx.shadowColor=G.isShohouMode?'#ff6600':'#0033aa';
+  ctx.beginPath();ctx.roundRect(px,py,pw,ph,12);ctx.fill();
+  ctx.strokeStyle=G.isShohouMode?'rgba(255,120,0,0.8)':'rgba(100,150,255,0.35)';
+  ctx.lineWidth=G.isShohouMode?2:1.5;ctx.beginPath();ctx.roundRect(px,py,pw,ph,12);ctx.stroke();ctx.shadowBlur=0;
+  if(G.isShohouMode){
+    const blink=Math.floor(G.frameN/18)%2===0;
+    ctx.fillStyle='rgba(0,0,0,0.7)';ctx.beginPath();ctx.roundRect(px,py-36,pw,32,8);ctx.fill();
+    ctx.strokeStyle='rgba(255,150,0,0.6)';ctx.lineWidth=1.2;ctx.beginPath();ctx.roundRect(px,py-36,pw,32,8);ctx.stroke();
+    ctx.shadowBlur=10;ctx.shadowColor='#ff8800';
+    ctx.fillStyle=blink?'#FFD700':'#ff9900';
+    ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+    ctx.fillText('⬇ これをタイピングすると 商流拳 が発動！',W/2,py-15);ctx.shadowBlur=0;
+    ctx.fillStyle='#ff6600';ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.shadowBlur=8;ctx.shadowColor='#ff3300';
+    ctx.fillText('⚡ 商流拳発動！名言を打て！',W/2,py+16);ctx.shadowBlur=0;
+  }
+  ctx.fillStyle=G.isShohouMode?'rgba(255,160,60,0.9)':'rgba(255,215,0,0.75)';
+  ctx.font=`bold 17px "Hiragino Sans","Yu Gothic",monospace`;ctx.textAlign='center';
+  ctx.fillText(word.jp,W/2,py+(G.isShohouMode?34:30));
+  const w=word.word;const typed=w.slice(0,G.typedIndex);const remaining=w.slice(G.typedIndex);
+  ctx.font='bold 42px monospace';ctx.textAlign='center';
+  const totalW=ctx.measureText(w).width;let curX=W/2-totalW/2;
+  ctx.fillStyle='#FFD700';ctx.shadowBlur=12;ctx.shadowColor='#FFD700';
+  typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,py+(G.isShohouMode?84:78));curX+=cw;});
+  ctx.shadowBlur=0;
+  if(remaining.length>0){const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#8888ff';ctx.fillText(nextCh,curX+cw/2,py+(G.isShohouMode?84:78));ctx.shadowBlur=0;curX+=cw;}
+  ctx.fillStyle='rgba(170,170,200,0.42)';
+  remaining.slice(1).split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,py+(G.isShohouMode?84:78));curX+=cw;});
+  ctx.fillStyle='rgba(150,150,180,0.65)';ctx.font='9px monospace';ctx.textAlign='right';ctx.fillText(`残り ${G.wordQueue.length+1}語`,px+pw-10,py+ph-10);
+  if(G.wordQueue.length>0&&!G.isShohouMode){
+    const nextW=G.wordQueue[0];
+    ctx.fillStyle='rgba(100,100,145,0.55)';ctx.font='11px monospace';ctx.textAlign='center';
+    ctx.fillText('NEXT: '+nextW.word,W/2,py+ph+16);
+  }
+}
+
+// ── 商流拳エフェクト（MAX演出）──
+let shohouTimer=0;
+function drawShohouEffect(){
+  if(shohouTimer<=0)return;
+  const t=shohouTimer;const maxT=220;
+  // フェードイン
+  if(t>155){const alpha=Math.min(1,(maxT-t)/65*0.92);ctx.fillStyle=`rgba(0,0,0,${alpha})`;ctx.fillRect(0,0,W,H);}
+  // 色フラッシュシーケンス（RGB分離っぽい）
+  if(t>158&&t<185){
+    const age=185-t;const fl=age/27;
+    ctx.save();
+    ctx.globalAlpha=fl*0.35;ctx.fillStyle='#ff0000';ctx.fillRect(-4,0,W,H);
+    ctx.globalAlpha=fl*0.35;ctx.fillStyle='#0000ff';ctx.fillRect(4,0,W,H);
+    ctx.globalAlpha=fl*0.25;ctx.fillStyle='#00ff00';ctx.fillRect(0,3,W,H);
+    ctx.restore();
+  }
+  // 全方位放射線（2層）
+  if(t>100&&t<162){
+    const cx=W/2,cy=H/2-20;ctx.save();
+    const n=48;
+    for(let i=0;i<n;i++){
+      const a=(i/n)*Math.PI*2+(G.frameN*0.05);const len=rand(110,280);const alpha=(1-(162-t)/62)*0.72;
+      const hue=(i/n)*60+20;
+      ctx.strokeStyle=`hsla(${hue},100%,60%,${alpha})`;ctx.lineWidth=1.8;ctx.shadowBlur=16;ctx.shadowColor=`hsl(${hue},100%,50%)`;
+      ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*26,cy+Math.sin(a)*26);ctx.lineTo(cx+Math.cos(a)*len,cy+Math.sin(a)*len);ctx.stroke();
+    }
+    // 内側の密な線
+    for(let i=0;i<24;i++){
+      const a=(i/24)*Math.PI*2-(G.frameN*0.03);const len=rand(60,140);const alpha=(1-(162-t)/62)*0.45;
+      ctx.strokeStyle=`rgba(255,255,200,${alpha})`;ctx.lineWidth=1;ctx.shadowBlur=0;
+      ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*10,cy+Math.sin(a)*10);ctx.lineTo(cx+Math.cos(a)*len,cy+Math.sin(a)*len);ctx.stroke();
+    }
+    ctx.shadowBlur=0;ctx.restore();
+  }
+  // 商流拳！テキスト（迫力MAX）
+  if(t<135&&t>30){
+    const sc=t>118?1+(135-t)/17*2.5:1;const alpha=t<45?(t-30)/15:1;
+    ctx.save();ctx.globalAlpha=alpha;ctx.translate(W/2,H/2-20);ctx.scale(sc,sc);ctx.textAlign='center';
+    // 影レイヤー（ぶれ感）
+    for(let i=0;i<3;i++){
+      const ox=(Math.random()-0.5)*6,oy=(Math.random()-0.5)*6;
+      ctx.shadowBlur=60;ctx.shadowColor='#ff2200';ctx.fillStyle=`rgba(255,${30+i*20},0,0.4)`;
+      ctx.font='bold 76px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('商流拳！！！',ox,oy);
+    }
+    ctx.shadowBlur=0;
+    // グラデーションテキスト本体
+    const grad=ctx.createLinearGradient(0,-40,0,40);
+    grad.addColorStop(0,'#ffffff');grad.addColorStop(0.25,'#FFD700');grad.addColorStop(0.7,'#ff8800');grad.addColorStop(1,'#ff3300');
+    ctx.shadowBlur=40;ctx.shadowColor='#ffcc00';ctx.fillStyle=grad;
+    ctx.font='bold 76px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('商流拳！！！',0,0);ctx.shadowBlur=0;
+    if(sc<1.45){
+      // 必殺帯
+      ctx.fillStyle='rgba(255,150,0,0.22)';ctx.fillRect(-200,46,400,28);
+      ctx.fillStyle='rgba(255,220,100,0.95)';ctx.font='bold 14px monospace';ctx.fillText('── 必殺！商流拳！ ──',0,64);
+      // 名言
+      if(G.shohouWord&&t<110){
+        const qAlpha=Math.min(1,(110-t)/30);ctx.globalAlpha=qAlpha;
+        ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(-230,76,460,32);
+        ctx.fillStyle='#FFD700';ctx.font='bold 16px "Hiragino Sans","Yu Gothic",monospace';
+        ctx.shadowBlur=12;ctx.shadowColor='#ff8800';ctx.fillText(G.shohouWord.jp,0,97);ctx.shadowBlur=0;
+        ctx.globalAlpha=1;
+      }
+    }
+    ctx.restore();
+  }
+  // 三重衝撃波
+  if(t<115&&t>60){
+    const age=115-t;
+    [1,0.6,0.3].forEach((scale,li)=>{
+      const r=age*22*scale;const alpha=Math.max(0,(1-age/55)*scale);
+      const colors=['rgba(255,180,0','rgba(255,255,180','rgba(255,100,0'];
+      ctx.strokeStyle=`${colors[li]},${alpha})`;ctx.lineWidth=(5-li*1.5)*(1-age/55);
+      ctx.shadowBlur=28;ctx.shadowColor='#ff9900';
+      ctx.beginPath();ctx.arc(W/2,H/2-20,r,0,Math.PI*2);ctx.stroke();
+    });
+    ctx.shadowBlur=0;
+  }
+  // パーティクル大量放出
+  if(t%2===0&&t>35&&t<165){
+    const cols=['#FFD700','#ff9900','#ffffff','#ffcc44','#ff6600'];
+    for(let k=0;k<3;k++){
+      const a=Math.random()*Math.PI*2,r=rand(10,180);
+      addPt(W/2+Math.cos(a)*r,H/2-20+Math.sin(a)*r,(Math.random()-0.5)*9,(Math.random()-0.5)*9-3,rand(25,55),cols[Math.floor(Math.random()*cols.length)],rand(3,10));
+    }
+  }
+  // ヒット時コインが敵→プレイヤーへ流れる
+  if(t===90){for(let i=0;i<5;i++)setTimeout(()=>addProj(rand(500,580),rand(170,230),'#FFD700'),i*60);}
+  shohouTimer--;
+}
+
+// ── 背景 ──
+function drawBG(){
+  const st=STAGES[Math.min(G.stageIdx,STAGES.length-1)];
+  const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,st.bgTop);bg.addColorStop(1,st.bgBot);
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  const floorY=H-128;
+  ctx.fillStyle='rgba(255,255,255,0.045)';ctx.fillRect(0,floorY,W,2);
+  const floorG=ctx.createLinearGradient(0,floorY,0,floorY+65);
+  floorG.addColorStop(0,'rgba(255,255,255,0.07)');floorG.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=floorG;ctx.fillRect(0,floorY,W,65);
+  // ステージ4以降：星
+  if(G.stageIdx>=3){
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    for(let i=0;i<45;i++){const sx=(i*137)%W,sy=(i*89)%floorY;const br=Math.sin(G.frameN*0.04+i)*0.4+0.5;ctx.globalAlpha=br*0.38;ctx.beginPath();ctx.arc(sx,sy,0.9,0,Math.PI*2);ctx.fill();}
+    ctx.globalAlpha=1;
+  }
+  // ステージ1：浮遊する胞子
+  if(G.stageIdx===0){
+    for(let i=0;i<8;i++){const sx=((i*137+G.frameN*0.4)%W+W)%W;const sy=H*0.2+Math.sin(G.frameN*0.02+i)*40;ctx.globalAlpha=0.25;ctx.fillStyle='#cc88ff';ctx.beginPath();ctx.arc(sx,sy,3,0,Math.PI*2);ctx.fill();}
+    ctx.globalAlpha=1;
+  }
+  if(G.combo>=5){
+    const intensity=Math.min((G.combo-5)/15,1);const hue=G.combo>=15?220:25;
+    ctx.fillStyle=`rgba(${hue===220?0:255},${hue===220?100:70},${hue===220?255:0},${intensity*0.14})`;ctx.fillRect(0,0,W,H);
+    const edgeG=ctx.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.9);
+    edgeG.addColorStop(0,'rgba(0,0,0,0)');edgeG.addColorStop(1,`rgba(${hue===220?0:255},${hue===220?80:70},${hue===220?255:0},${intensity*0.3})`);
+    ctx.fillStyle=edgeG;ctx.fillRect(0,0,W,H);
+  }
+  // コンボ10以上：雷エフェクト
+  if(G.combo>=10&&Math.random()<0.04){
+    lightningTimer=8;
+    drawLightning(rand(0,W),0,rand(0,W),H*0.6,0.35);
+  }
+  if(lightningTimer>0&&G.combo>=10){
+    ctx.globalAlpha=0.08;ctx.fillStyle='#aaccff';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;
+  }
+}
+
+// ── タイトル画面（格好良くリニューアル）──
+const DIFF_OPTS=['easy','normal','hard'];
+const TITLE_QUOTES=[
+  '今日が人生で一番若い日！',
+  '借金なんかすんじゃねえ！',
+  '複利は人類最大の発明！',
+  '行動なくして自由なし！',
+  'FIRE達成で人生変わる！',
+  'お金の勉強を始めよう！',
+  '副業で収入の柱を作れ！',
+  'インデックス投資で最強に！',
+];
+let titleQuoteScroll=0;
+function drawTitle(){
+  const t=G.frameN;
+  // 背景グラデーション（深い宇宙感）
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#000008');bg.addColorStop(0.5,'#000018');bg.addColorStop(1,'#00000a');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // 2層の星（パララックス）
+  for(let i=0;i<100;i++){
+    const sx=(i*137.5+t*0.12)%W,sy=(i*89.3+t*0.08)%H;
+    const br=Math.sin(t*0.03+i)*0.4+0.6;
+    const size=i<50?0.8:1.4;
+    ctx.globalAlpha=br*(i<50?0.3:0.55);
+    ctx.fillStyle=i%5===0?'#aaccff':'#ffffff';
+    ctx.beginPath();ctx.arc(sx,sy,size,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // 流れ星
+  const meteor=(t*1.8)%900;
+  if(meteor<320){ctx.save();ctx.globalAlpha=Math.min(1,meteor/60)*(1-Math.max(0,meteor-260)/60);ctx.strokeStyle='#ffffcc';ctx.lineWidth=1.5;ctx.shadowBlur=6;ctx.shadowColor='#ffffaa';ctx.beginPath();ctx.moveTo(meteor*0.8,meteor*0.4);ctx.lineTo(meteor*0.8-40,meteor*0.4-20);ctx.stroke();ctx.shadowBlur=0;ctx.restore();}
+  ctx.textAlign='center';
+  // サブタイトル
+  ctx.fillStyle='rgba(255,215,0,0.72)';ctx.font='11px monospace';
+  ctx.fillText('Vitamin D presents',W/2,H/2-100);
+  // メインタイトル（各文字に波打ちグロウ）
+  const titleStr='リベシティ';
+  ctx.font='bold 54px "Hiragino Sans","Yu Gothic",monospace';
+  const titleW=ctx.measureText(titleStr).width;
+  let tx=W/2-titleW/2;
+  for(let i=0;i<titleStr.length;i++){
+    const ch=titleStr[i];const cw=ctx.measureText(ch).width;
+    const wave=Math.sin(t*0.05+i*0.8)*3;
+    const hue=(t*2+i*30)%360;
+    ctx.shadowBlur=36+Math.sin(t*0.08+i)*12;ctx.shadowColor=`hsl(${hue},80%,65%)`;
+    ctx.fillStyle='#ffffff';
+    ctx.fillText(ch,tx+cw/2,H/2-42+wave);
+    tx+=cw;
+  }
+  ctx.shadowBlur=0;
+  // TYPING FIGHTERテキスト（カラーサイクル）
+  const tfHue=(t*1.5)%360;
+  ctx.shadowBlur=28;ctx.shadowColor=`hsl(${tfHue},100%,60%)`;
+  ctx.fillStyle=`hsl(${tfHue},100%,65%)`;
+  ctx.font='bold 38px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText('TYPING FIGHTER',W/2,H/2+16);ctx.shadowBlur=0;
+  // サブコピー
+  ctx.fillStyle='rgba(180,160,255,0.8)';ctx.font='13px monospace';
+  ctx.fillText('〜 全5ステージ・お金持ち山を目指せ！〜',W/2,H/2+44);
+  // 難易度ボタン
+  const btnW=92,btnH=30,btnY=H/2+66,gap=12;const totalBtnW=DIFF_OPTS.length*(btnW+gap)-gap;
+  DIFF_OPTS.forEach((d,i)=>{
+    const dd=DIFFICULTY_DEFS[d];const bx=W/2-totalBtnW/2+i*(btnW+gap);const sel=selectedDiff===d;
+    ctx.fillStyle=sel?dd.col:'rgba(20,20,40,0.92)';ctx.strokeStyle=sel?dd.col:'rgba(150,150,185,0.4)';ctx.lineWidth=sel?2.2:1;
+    ctx.shadowBlur=sel?18:0;ctx.shadowColor=dd.col;
+    ctx.beginPath();ctx.roundRect(bx,btnY,btnW,btnH,8);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+    ctx.fillStyle=sel?'#000':'rgba(200,200,222,0.85)';ctx.font=`bold ${sel?13:11}px monospace`;ctx.textAlign='center';
+    ctx.fillText(dd.label,bx+btnW/2,btnY+20);
+  });
+  ctx.fillStyle='rgba(140,140,175,0.5)';ctx.font='9px monospace';ctx.textAlign='center';ctx.fillText('← → で難易度選択',W/2,H/2+108);
+  // PRESS ENTER（派手にパルス）
+  if(Math.floor(t/22)%2===0){
+    const pe=`hsl(${(t*2)%360},100%,75%)`;
+    ctx.shadowBlur=20;ctx.shadowColor=pe;ctx.fillStyle=pe;ctx.font='bold 15px monospace';
+    ctx.fillText('[ Enter / Click でスタート ]',W/2,H/2+126);ctx.shadowBlur=0;
+  }
+  // ハイスコア
+  const hs=loadHS();
+  ctx.fillStyle='rgba(255,215,0,0.7)';ctx.font='bold 11px monospace';ctx.textAlign='center';
+  ctx.fillText(`BEST: ${hs.score}pts  MAX COMBO: ${hs.combo}`,W/2,H-38);
+  const unlocked=getAchievements();
+  ctx.fillStyle='rgba(130,130,165,0.5)';ctx.font='9px monospace';ctx.fillText(`実績: ${unlocked.length}/${ACHIEVEMENTS.length}`,W/2,H-24);
+  // スクロールする名言マーキー
+  titleQuoteScroll=(titleQuoteScroll+0.7)%(W+600);
+  const qIdx=Math.floor(t/240)%TITLE_QUOTES.length;
+  const qq=TITLE_QUOTES[qIdx];
+  ctx.save();ctx.fillStyle='rgba(255,215,0,0.55)';ctx.font='bold 12px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='left';
+  const mx=W-titleQuoteScroll;ctx.fillText(`★ ${qq} ★ 両学長より`,mx,H-8);ctx.restore();
+  // ライオン（左）
+  const ls=Math.sin(t*0.05)*1.5;
+  ctx.save();
+  if(Math.floor(t/80)%3===0){ctx.shadowBlur=20;ctx.shadowColor='#FFD700';}
+  drawLion(110,H/2+28+ls,'idle');ctx.shadowBlur=0;ctx.restore();
+  // 右側に敵シルエット
+  ctx.globalAlpha=0.5+Math.sin(t*0.04)*0.2;
+  drawKinoko(W-110,H/2+28+ls,'idle','#cc44ff');
+  ctx.globalAlpha=1;
+}
+
+// ── ステージクリア ──
+function drawStageClear(){
+  ctx.fillStyle='rgba(0,0,10,0.75)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  const st=STAGES[G.stageIdx];
+  ctx.shadowBlur=32;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';ctx.font='bold 46px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('STAGE CLEAR!',W/2,H/2-52);ctx.shadowBlur=0;
+  ctx.fillStyle='#fff';ctx.font='18px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(`${st.enemyName}を倒した！`,W/2,H/2-4);
+  const lines=ENEMY_LINES[G.stageIdx]||[];
+  if(lines.length>0){
+    const lineIdx=Math.floor(G.frameN/110)%lines.length;const msg=lines[lineIdx];
+    const bw=Math.min(380,ctx.measureText(msg).width+44);const bx=W/2-bw/2,by=H/2+22;
+    ctx.fillStyle='rgba(255,255,255,0.93)';ctx.strokeStyle='rgba(200,180,255,0.55)';ctx.lineWidth=1.5;ctx.shadowBlur=7;ctx.shadowColor='rgba(180,140,255,0.45)';
+    ctx.beginPath();ctx.roundRect(bx,by,bw,34,9);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(255,255,255,0.93)';ctx.beginPath();ctx.moveTo(W/2-10,by+34);ctx.lineTo(W/2,by+48);ctx.lineTo(W/2+10,by+34);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#220033';ctx.font='bold 12px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';ctx.fillText(msg,W/2,by+23);
+  }
+  // 次のステージ情報
+  if(G.stageIdx<STAGES.length-1){
+    const next=STAGES[G.stageIdx+1];
+    ctx.fillStyle='rgba(100,200,255,0.7)';ctx.font='11px monospace';ctx.fillText(`NEXT → ${next.enemyName}`,W/2,H/2+72);
+  }
+  if(Math.floor(G.frameN/25)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter で次のステージへ ]',W/2,H/2+88);}
+}
+
+function drawGameClear(){
+  ctx.fillStyle='rgba(0,0,0,0.82)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  const t=G.frameN*0.02;
+  // 背景スパークル
+  for(let i=0;i<30;i++){const sx=(i*97+G.frameN*0.5)%W,sy=(i*67+G.frameN*0.3)%H;ctx.globalAlpha=Math.sin(G.frameN*0.05+i)*0.3+0.3;ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(sx,sy,1.2,0,Math.PI*2);ctx.fill();}
+  ctx.globalAlpha=1;
+  ctx.shadowBlur=55+Math.sin(t)*14;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';ctx.font='bold 44px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('FIRE達成！！',W/2,H/2-60);ctx.shadowBlur=0;
+  ctx.fillStyle='#fff';ctx.font='bold 18px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('今日が人生で一番若い日だ！',W/2,H/2-8);
+  ctx.fillStyle='rgba(255,180,0,0.8)';ctx.font='14px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('借金なんかすんじゃねえ！',W/2,H/2+18);
+  const hs=loadHS();const isNewBest=G.score>hs.score;
+  ctx.fillStyle=isNewBest?'#FFD700':'#aaa';ctx.font='14px monospace';
+  ctx.fillText(`SCORE: ${G.score}${isNewBest?' ★NEW BEST!':''}  MAX COMBO: ${G.comboMax}`,W/2,H/2+48);
+  if(Math.floor(G.frameN/30)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter でタイトルへ ]',W/2,H/2+78);}
+}
+
+function drawGameOver(){
+  ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  ctx.shadowBlur=28;ctx.shadowColor='#5555ff';ctx.fillStyle='#4466ff';ctx.font='bold 60px monospace';ctx.fillText('GAME OVER',W/2,H/2-18);ctx.shadowBlur=0;
+  ctx.fillStyle='#aaa';ctx.font='14px monospace';ctx.fillText(`SCORE: ${G.score}`,W/2,H/2+30);
+  if(Math.floor(G.frameN/30)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter でタイトルへ ]',W/2,H/2+64);}
+}
+function drawPause(){
+  ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  ctx.shadowBlur=22;ctx.shadowColor='#88aaff';ctx.fillStyle='#fff';ctx.font='bold 46px monospace';ctx.fillText('PAUSE',W/2,H/2-10);ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(180,180,225,0.75)';ctx.font='13px monospace';ctx.fillText('[ Esc で再開 ]',W/2,H/2+36);
+}
+function drawResumeCountdown(){
+  ctx.fillStyle='rgba(0,0,0,0.52)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  const n=Math.ceil(G.resumeCountdown/60);
+  ctx.shadowBlur=32;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';ctx.font='bold 118px monospace';ctx.fillText(n>0?n:'GO!',W/2,H/2+42);ctx.shadowBlur=0;
+}
+
+// ── メインループ ──
+function loop(){
+  G.frameN++;updateFX();
+  ctx.save();
+  if(Math.abs(zoomScale-1)>0.002){ctx.translate(zoomCX,zoomCY);ctx.scale(zoomScale,zoomScale);ctx.translate(-zoomCX,-zoomCY);}
+  if(shakePow>0.3)ctx.translate(Math.round(shakeX),Math.round(shakeY));
+
+  if(G.phase==='title'){
+    drawTitle();drawPts();updatePts();
+    if(Math.random()<0.015)coinBurst(Math.random()*W,Math.random()*H*0.5);
+  }
+  else if(G.phase==='fight'){
+    if(G.hitstop>0){G.hitstop--;}
+    else{
+      G.atkTimer--;
+      if(G.atkTimer<=0){
+        const st=STAGES[G.stageIdx];G.atkTimer=st.atkInterval;
+        G.playerHp=Math.max(0,G.playerHp-st.enemyAtk);
+        G.playerHurt=20;G.stageNoDamage=false;
+        shake(9);flash('#0044cc',0.45);SFX.enemyAtk();wrongBurst(178,202);
+        if(G.playerHp<=0){G.phase='gameover';stopBGM();saveHS(G.score,G.comboMax);startChip('gameover');}
+      }
+      if(G.comboTimer>0)G.comboTimer--;else if(G.combo>0)G.combo=0;
+      if(G.wrongFlash>0)G.wrongFlash--;
+      if(G.playerHurt>0)G.playerHurt--;if(G.enemyHurt>0)G.enemyHurt--;if(G.playerAtk>0)G.playerAtk--;
+      const targetPitch=G.combo>=15?1.2:G.combo>=10?1.12:G.combo>=5?1.06:1.0;
+      setBGMPitch(targetPitch);
+    }
+    updatePts();drawBG();drawPts();updateDrawProjs();drawDmgNums();
+    if(G.playerHurt>0&&Math.floor(G.playerHurt/3)%2===0){ctx.save();ctx.filter='brightness(3) sepia(1) hue-rotate(180deg)';drawLion(178,222,G.playerAtk>0?'atk':'idle');ctx.restore();}
+    else drawLion(178,222,G.playerAtk>0?'atk':'idle');
+    if(enemyTypingShake>0){enemyTypingShake--;}
+    const esx=enemyTypingShake>0?(Math.random()-0.5)*4:0;
+    if(G.enemyHurt>0&&Math.floor(G.enemyHurt/3)%2===0){ctx.save();ctx.filter='brightness(3) saturate(0)';ctx.translate(esx,0);drawEnemy(542,222,G.enemyHp<=0?'ko':'hurt');ctx.restore();}
+    else{ctx.save();ctx.translate(esx,0);drawEnemy(542,222,G.enemyHp<=0?'ko':'idle');ctx.restore();}
+    drawHUD();drawWordPanel();drawShohouEffect();
+    if(flashA>0.01){ctx.globalAlpha=flashA;ctx.fillStyle=flashC;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
+    drawAchievements();
+  }
+  else if(G.phase==='paused'){drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();drawPause();drawAchievements();}
+  else if(G.phase==='resuming'){
+    drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();
+    G.resumeCountdown--;
+    if(G.resumeCountdown<=0)G.phase='fight';else drawResumeCountdown();
+  }
+  else if(G.phase==='stageclear'){
+    drawBG();drawLion(178,222,'win');drawEnemy(542,222,'ko');drawPts();updatePts();drawStageClear();
+    if(Math.random()<0.06)coinBurst(Math.random()*W,Math.random()*H*0.5);drawAchievements();
+  }
+  else if(G.phase==='gameclear'){
+    const bg2=ctx.createLinearGradient(0,0,0,H);bg2.addColorStop(0,'#000010');bg2.addColorStop(1,'#001000');ctx.fillStyle=bg2;ctx.fillRect(0,0,W,H);
+    drawLion(W/2,285,'win');drawPts();updatePts();drawGameClear();
+    if(Math.random()<0.08)coinBurst(Math.random()*W,Math.random()*H*0.6);drawAchievements();
+  }
+  else if(G.phase==='gameover'){drawBG();drawPts();updatePts();drawGameOver();drawAchievements();}
+
+  ctx.restore();
+  requestAnimationFrame(loop);
+}
+
+// ── キー入力 ──
+function handleKey(key,code){
+  AC.resume();
+  if(code==='Escape'){
+    if(G.phase==='fight'){G.phase='paused';stopBGM();}
+    else if(G.phase==='paused'){G.phase='resuming';G.resumeCountdown=180;startBGM();}
+    return;
+  }
+  if(code==='Enter'){
+    if(G.phase==='title'){stopChip();shohouPriorityIdx=0;shohouCount=0;startStage(0);}
+    else if(G.phase==='stageclear'){
+      if(G.stageIdx<STAGES.length-1)startStage(G.stageIdx+1);
+      else{G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);unlockAchievement('allclear');setTimeout(()=>startChip('clear'),800);}
+    }
+    else if(G.phase==='gameclear'||G.phase==='gameover'){stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.phase='title';startChip('title');}
+    return;
+  }
+  if(G.phase==='title'){
+    const idx=DIFF_OPTS.indexOf(selectedDiff);
+    if(code==='ArrowRight'){selectedDiff=DIFF_OPTS[(idx+1)%DIFF_OPTS.length];return;}
+    if(code==='ArrowLeft'){selectedDiff=DIFF_OPTS[(idx+DIFF_OPTS.length-1)%DIFF_OPTS.length];return;}
+  }
+  if(code==='Space'&&G.phase==='fight'&&!G.isShohouMode){
+    if(G.superGauge>=100){
+      startShohouMode();shohouTimer=200;SFX.shohou();flash('#ff6600',0.85);shake(16);
+      unlockAchievement('shohou_used');
+      shohouCount++;
+      if(shohouCount>=3)unlockAchievement('shohou3');
+    }
+    return;
+  }
+  if(G.phase!=='fight')return;
+  if(G.hitstop>0)return;
+  const word=G.isShohouMode?G.shohouWord:G.currentWord;
+  if(!word)return;
+  if(code==='Backspace'){if(G.typedIndex>0){G.typedIndex--;G.combo=0;G.comboTimer=0;G.wrongFlash=4;}return;}
+  if(key.length!==1||!/[a-z0-9\-\/\.,_]/.test(key))return;
+  const expected=word.word[G.typedIndex];
+  if(key===expected){
+    G.typedIndex++;
+    SFX.correct(G.typedIndex-1,word.word.length);
+    // 1キーごとに実ダメージ（小）
+    const keyDmg=Math.max(1,Math.floor(word.dmg/word.word.length));
+    G.enemyHp=Math.max(0,G.enemyHp-keyDmg);
+    G.enemyHurt=Math.max(G.enemyHurt,5);
+    enemyTypingShake=3;
+    addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
+    if(G.typedIndex>=word.word.length){
+      const elapsed=(performance.now()-G.wordStartTime)/1000;
+      const wpm=Math.round((word.word.length/5)/(elapsed/60));
+      G.wpmHistory.push(wpm);if(G.wpmHistory.length>10)G.wpmHistory.shift();
+      G.currentWpm=Math.round(G.wpmHistory.reduce((a,b)=>a+b,0)/G.wpmHistory.length);
+      if(G.currentWpm>=60)unlockAchievement('wpm60');
+      if(G.currentWpm>=80)unlockAchievement('wpm80');
+      if(G.currentWpm>=100)unlockAchievement('wpm100');
+      const comboBonus=Math.min(G.combo,10)*4;
+      // per-key分は既に引いてあるので、残り（コンボボーナス＋フィニッシュボーナス）を追加
+      const perKeyDealt=Math.floor(word.dmg/word.word.length)*word.word.length;
+      const finishBonus=word.dmg-perKeyDealt+comboBonus; // 端数＋コンボ
+      let dmg=Math.max(finishBonus,comboBonus+5);
+      const isShohouFinish=G.isShohouMode;
+      if(G.isShohouMode){
+        // 商流拳：残りHPの大部分をどかっと削る
+        dmg=Math.max(Math.floor(G.enemyMaxHp*0.62),G.enemyHp-1);
+        G.isShohouMode=false;G.shohouWord=null;G.superGauge=0;G.superActive=0;
+        zoomTargetScale=1.65;zoomCX=540;zoomCY=200;setTimeout(()=>zoomTargetScale=1.0,1600);
+        shake(34);flash('#ff8800',1.0);
+        superBurst(540,200);
+        // HPバー「どかっ」演出
+        hpLerpSpeed=0.45;hpBarFlash=30;
+      }
+      G.enemyHp=Math.max(0,G.enemyHp-dmg);G.score+=dmg*10*(1+G.combo*0.1|0);
+      // ワードクリアのダメージ数字（大）
+      if(isShohouFinish){
+        addDmgNum(542,155,'CRITICAL!!','#ffffff',true);
+        addDmgNum(542,188,`-${dmg}`,'#FFD700',true);
+        setTimeout(()=>addDmgNum(542,220,'商流拳！！','#ff9900',true),160);
+      }else{
+        addDmgNum(rand(510,575),rand(160,200),`-${dmg}`,'#ff6600',true);
+      }
+      G.combo++;G.comboTimer=120;G.comboMax=Math.max(G.comboMax,G.combo);
+      G.playerAtk=20;G.enemyHurt=22;G.hitstop=6;
+      shake(6);flash('#FFD700',0.42);SFX.wordClear();
+      // ワードクリアでもHPバーに軽いフラッシュ
+      hpBarFlash=Math.max(hpBarFlash,12);hpLerpSpeed=Math.max(hpLerpSpeed,0.22);
+      addProj(220,185,'#FFD700');
+      // コンボマイルストーン
+      if(G.combo===10){SFX.combo10();comboBurst(W/2,H/2,10);unlockAchievement('combo10');}
+      if(G.combo===20){comboBurst(W/2,H/2,20);flash('#88ffaa',0.5);unlockAchievement('combo20');}
+      if(G.combo===30){comboBurst(W/2,H/2,30);flash('#FFD700',0.6);shake(12);unlockAchievement('combo30');}
+      if(G.combo===50){comboBurst(W/2,H/2,50);flash('#ffffff',0.8);shake(20);unlockAchievement('combo50');}
+      const prevGauge=G.superGauge;
+      G.superGauge=Math.min(100,G.superGauge+14+Math.min(G.combo,6)*4);
+      if(prevGauge<100&&G.superGauge>=100)SFX.gaugeFull();
+      if(G.enemyHp<=0){
+        G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
+        SFX.ko();shake(22);flash('#FFD700',0.92);
+        unlockAchievement('first_kill');
+        if(G.stageNoDamage)unlockAchievement('nodamage');
+        for(let i=0;i<24;i++)setTimeout(()=>coinBurst(Math.random()*W,Math.random()*H*0.5),i*75);
+        setBGMPitch(1.0);stopBGM();
+        setTimeout(()=>{G.phase='stageclear';SFX.stageClear();},1300);
+      }else{nextWord();}
+    }
+  }else{
+    G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
+  }
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&G.phase==='fight')e.preventDefault();
+  handleKey(e.key.toLowerCase(),e.code);
+});
+const mobileInput=document.getElementById('mobileInput');
+mobileInput.addEventListener('input',e=>{
+  const val=e.data;if(!val)return;
+  AC.resume();handleKey(val.toLowerCase(),'Key'+val.toUpperCase());mobileInput.value='';
+});
+mobileInput.addEventListener('keydown',e=>{
+  if(e.key==='Backspace'||e.key==='Enter'){e.stopPropagation();AC.resume();handleKey(e.key.toLowerCase(),e.code||e.key);}
+});
+cvs.addEventListener('click',e=>{
+  AC.resume();mobileInput.focus();
+  if(G.phase==='title'){
+    const rect=cvs.getBoundingClientRect();const scaleX=W/rect.width,scaleY=H/rect.height;
+    const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
+    const btnW=92,btnH=30,btnY=H/2+66,gap=12;const totalBtnW=DIFF_OPTS.length*(btnW+gap)-gap;
+    let clicked=false;
+    DIFF_OPTS.forEach((d,i)=>{const bx=W/2-totalBtnW/2+i*(btnW+gap);if(mx>=bx&&mx<=bx+btnW&&my>=btnY&&my<=btnY+btnH){selectedDiff=d;clicked=true;}});
+    if(!clicked){shohouPriorityIdx=0;shohouCount=0;startStage(0);}
+  }
+});
+
+// タイトル画面チップチューンを起動
+startChip('title');
+loop();
+</script>
 </body>
 </html>
