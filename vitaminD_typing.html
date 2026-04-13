@@ -468,6 +468,7 @@ function drawLightning(x1,y1,x2,y2,alpha=1){
 
 // ── ゲーム状態 ──
 let shohouCount=0;
+let bgScroll=0;
 let G={
   phase:'title',stageIdx:0,
   playerHp:100,playerMaxHp:100,
@@ -951,27 +952,134 @@ function drawShohouEffect(){
   shohouTimer--;
 }
 
-// ── 背景 ──
+// ── 背景（視差スクロール3レイヤー） ──
+
+// 遠景レイヤー：星・微粒子（速度0.15）
+function drawBGFar(st){
+  const sc=bgScroll*0.15;
+  const n=60;
+  for(let i=0;i<n;i++){
+    const sx=((i*137.5+sc)%W+W)%W;
+    const sy=(i*89.3)%(H-130);
+    const br=Math.sin(G.frameN*0.03+i)*0.4+0.6;
+    const size=i<30?0.8:1.4;
+    ctx.globalAlpha=br*(i<30?0.25:0.45);
+    ctx.fillStyle=i%7===0?'#aaccff':'#ffffff';
+    ctx.beginPath();ctx.arc(sx,sy,size,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+// 中景レイヤー：ステージ固有オブジェクト（速度0.5）
+function drawBGMid0(){ // 毒ローン山：胞子＋毒泡
+  const sc=bgScroll*0.5;
+  for(let i=0;i<18;i++){
+    const x=((i*137+sc)%W+W)%W;
+    const y=H*0.08+(i*67%(H*0.55))+Math.sin(G.frameN*0.02+i)*18;
+    const size=2+(i%5)*2.2;
+    const alpha=0.18+Math.sin(G.frameN*0.04+i*0.8)*0.1;
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=i%3===0?'#44ff88':'#cc44ff';
+    ctx.shadowBlur=6;ctx.shadowColor=ctx.fillStyle;
+    ctx.beginPath();ctx.arc(x,y,size,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+  }
+  ctx.globalAlpha=1;
+}
+function drawBGMid1(){ // 詐欺師アジト：落下する紙幣
+  const sc=bgScroll*0.5;
+  for(let i=0;i<12;i++){
+    const x=((i*173+sc*0.4)%W+W)%W;
+    const y=((i*97+bgScroll*0.8)%(H-80)+H)%(H-80);
+    const rot=Math.sin(G.frameN*0.03+i)*0.4;
+    const alpha=0.2+Math.sin(G.frameN*0.02+i)*0.08;
+    ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.globalAlpha=alpha;
+    ctx.fillStyle='#88ffcc';ctx.fillRect(-14,-8,28,16);
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(-10,-2,20,1);ctx.fillRect(-10,2,20,1);
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+}
+function drawBGMid2(){ // 保険地獄：書類が舞う
+  const sc=bgScroll*0.5;
+  for(let i=0;i<10;i++){
+    const x=((i*191+sc*0.35)%W+W)%W;
+    const y=((i*113+bgScroll*0.7)%(H-80)+H)%(H-80);
+    const rot=Math.sin(G.frameN*0.025+i)*0.6;
+    const alpha=0.18+Math.sin(G.frameN*0.03+i)*0.07;
+    ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.globalAlpha=alpha;
+    ctx.fillStyle='#ffcccc';ctx.fillRect(-12,-16,24,32);
+    ctx.fillStyle='rgba(180,0,0,0.35)';
+    [-8,-3,2,7].forEach(ly=>ctx.fillRect(-9,ly,18,1.5));
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+}
+function drawBGMid3(){ // 悪徳FP：崩れるチャート棒グラフ
+  const sc=bgScroll*0.5;
+  for(let i=0;i<10;i++){
+    const x=((i*163+sc*0.3)%W+W)%W;
+    const baseY=H-140;
+    const h=20+(i%5)*18+Math.sin(G.frameN*0.04+i)*8;
+    const alpha=0.15+Math.sin(G.frameN*0.03+i)*0.07;
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=i%2===0?'#00ccff':'#ff4444';
+    ctx.fillRect(x-5,baseY-h,10,h);
+    // 崩れる矢印（下向き）
+    ctx.fillStyle='#ff4444';ctx.font='10px monospace';
+    ctx.textAlign='center';ctx.fillText('▼',x,baseY-h-6);
+  }
+  ctx.globalAlpha=1;
+}
+function drawBGMid4(){ // 黒の頂上：背景雷＋暗黒エネルギー
+  if(Math.random()<0.025){
+    const bx=rand(0,W);
+    ctx.save();ctx.globalAlpha=0.18;
+    drawLightning(bx,0,bx+rand(-60,60),H*0.55,0.6);
+    ctx.restore();
+  }
+  const sc=bgScroll*0.5;
+  for(let i=0;i<8;i++){
+    const x=((i*211+sc*0.2)%W+W)%W;
+    const y=(i*137%(H*0.6))+Math.sin(G.frameN*0.03+i)*15;
+    const r=8+Math.sin(G.frameN*0.05+i)*4;
+    const alpha=0.12+Math.sin(G.frameN*0.04+i)*0.06;
+    ctx.globalAlpha=alpha;
+    ctx.strokeStyle='#ff0000';ctx.lineWidth=1.5;ctx.shadowBlur=8;ctx.shadowColor='#ff0000';
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
+  }
+  ctx.globalAlpha=1;
+}
+
+const BG_MID_FNS=[drawBGMid0,drawBGMid1,drawBGMid2,drawBGMid3,drawBGMid4];
+
+// 床リフレクション
+function drawBGFloor(col){
+  const floorY=H-128;
+  // 床ライン
+  ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(0,floorY,W,1.5);
+  // 床グラデーション
+  const floorG=ctx.createLinearGradient(0,floorY,0,floorY+70);
+  floorG.addColorStop(0,'rgba(255,255,255,0.06)');floorG.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=floorG;ctx.fillRect(0,floorY,W,70);
+  // ステージカラーの床反射（パルス）
+  const pulse=Math.sin(G.frameN*0.04)*0.012+0.022;
+  ctx.globalAlpha=pulse*3;ctx.fillStyle=col;ctx.fillRect(0,floorY,W,3);ctx.globalAlpha=1;
+}
+
 function drawBG(){
+  bgScroll+=0.55;
   const st=STAGES[Math.min(G.stageIdx,STAGES.length-1)];
+  // 基本グラデーション
   const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,st.bgTop);bg.addColorStop(1,st.bgBot);
   ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-  const floorY=H-128;
-  ctx.fillStyle='rgba(255,255,255,0.045)';ctx.fillRect(0,floorY,W,2);
-  const floorG=ctx.createLinearGradient(0,floorY,0,floorY+65);
-  floorG.addColorStop(0,'rgba(255,255,255,0.07)');floorG.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=floorG;ctx.fillRect(0,floorY,W,65);
-  // ステージ4以降：星
-  if(G.stageIdx>=3){
-    ctx.fillStyle='rgba(255,255,255,0.5)';
-    for(let i=0;i<45;i++){const sx=(i*137)%W,sy=(i*89)%floorY;const br=Math.sin(G.frameN*0.04+i)*0.4+0.5;ctx.globalAlpha=br*0.38;ctx.beginPath();ctx.arc(sx,sy,0.9,0,Math.PI*2);ctx.fill();}
-    ctx.globalAlpha=1;
-  }
-  // ステージ1：浮遊する胞子
-  if(G.stageIdx===0){
-    for(let i=0;i<8;i++){const sx=((i*137+G.frameN*0.4)%W+W)%W;const sy=H*0.2+Math.sin(G.frameN*0.02+i)*40;ctx.globalAlpha=0.25;ctx.fillStyle='#cc88ff';ctx.beginPath();ctx.arc(sx,sy,3,0,Math.PI*2);ctx.fill();}
-    ctx.globalAlpha=1;
-  }
+  // 遠景
+  drawBGFar(st);
+  // 中景（ステージ別）
+  BG_MID_FNS[Math.min(G.stageIdx,4)]();
+  // 床リフレクション
+  drawBGFloor(st.col);
+  // コンボオーラ（既存）
   if(G.combo>=5){
     const intensity=Math.min((G.combo-5)/15,1);const hue=G.combo>=15?220:25;
     ctx.fillStyle=`rgba(${hue===220?0:255},${hue===220?100:70},${hue===220?255:0},${intensity*0.14})`;ctx.fillRect(0,0,W,H);
@@ -979,10 +1087,9 @@ function drawBG(){
     edgeG.addColorStop(0,'rgba(0,0,0,0)');edgeG.addColorStop(1,`rgba(${hue===220?0:255},${hue===220?80:70},${hue===220?255:0},${intensity*0.3})`);
     ctx.fillStyle=edgeG;ctx.fillRect(0,0,W,H);
   }
-  // コンボ10以上：雷エフェクト
+  // コンボ10以上：雷（既存）
   if(G.combo>=10&&Math.random()<0.04){
-    lightningTimer=8;
-    drawLightning(rand(0,W),0,rand(0,W),H*0.6,0.35);
+    lightningTimer=8;drawLightning(rand(0,W),0,rand(0,W),H*0.6,0.35);
   }
   if(lightningTimer>0&&G.combo>=10){
     ctx.globalAlpha=0.08;ctx.fillStyle='#aaccff';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;
