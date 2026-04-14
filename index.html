@@ -38,6 +38,7 @@ if(!CanvasRenderingContext2D.prototype.roundRect){
 }
 const W=720,H=405;
 cvs.width=W;cvs.height=H;
+let inputMode='pc'; // 'pc' | 'smartphone'
 function resize(){
   const vw=window.visualViewport?window.visualViewport.width:window.innerWidth;
   const vh=window.visualViewport?window.visualViewport.height:window.innerHeight;
@@ -618,8 +619,7 @@ function drawLightning(x1,y1,x2,y2,alpha=1){
   ctx.lineTo(x2,y2);ctx.stroke();ctx.shadowBlur=0;ctx.restore();
 }
 
-// ── 入力モード ──
-let inputMode='pc'; // 'pc' | 'smartphone'
+
 
 // ── ゲーム状態 ──
 let shohouCount=0;
