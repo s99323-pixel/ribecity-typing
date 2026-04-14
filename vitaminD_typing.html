@@ -278,6 +278,88 @@ const WORD_DB=[
   {word:'fire_path_2025',jp:'2025年FIRE達成計画！',dmg:110},
 ];
 
+// ── スマホ用ワードDB（学長名言メイン・ひらがな入力）──
+const WORD_DB_KANA=[
+  // 初級 idx 0-19（2〜5文字）
+  {word:'おかね',jp:'💰 お金',dmg:10},
+  {word:'じゆう',jp:'🔓 自由',dmg:10},
+  {word:'かぶ',jp:'📈 株式',dmg:12},
+  {word:'ほん',jp:'📚 本を読む',dmg:10},
+  {word:'きん',jp:'🥇 金',dmg:11},
+  {word:'らいおん',jp:'🦁 学長',dmg:12},
+  {word:'ちょきん',jp:'💴 貯金',dmg:12},
+  {word:'がくちょう',jp:'🦁 両学長',dmg:14},
+  {word:'とうし',jp:'📊 投資',dmg:12},
+  {word:'けんやく',jp:'✂️ 倹約',dmg:13},
+  {word:'まなぶ',jp:'📖 学ぶ',dmg:11},
+  {word:'かせぐ',jp:'💹 稼ぐ',dmg:11},
+  {word:'ゆめ',jp:'🌟 夢',dmg:10},
+  {word:'ちから',jp:'💪 力',dmg:10},
+  {word:'こうどう',jp:'🚀 行動',dmg:13},
+  {word:'しんし',jp:'🎩 紳士',dmg:11},
+  {word:'じことうし',jp:'📈 自己投資',dmg:15},
+  {word:'しほんか',jp:'🏭 資本家',dmg:14},
+  {word:'ふくり',jp:'🔄 複利',dmg:13},
+  {word:'にさ',jp:'🏦 NISA',dmg:12},
+  // 中級 idx 20-44（5〜9文字）
+  {word:'ふくぎょう',jp:'💼 副業',dmg:18},
+  {word:'りべしてぃ',jp:'🏙️ リベシティ',dmg:20},
+  {word:'しさんけいせい',jp:'🏗️ 資産形成',dmg:22},
+  {word:'ながきかんとうし',jp:'⏳ 長期間投資',dmg:24},
+  {word:'しょうりゅうけん',jp:'⚡ 商流拳！！',dmg:28},
+  {word:'おかねもち',jp:'💎 お金持ち',dmg:20},
+  {word:'けいざいてきじゆう',jp:'🔓 経済的自由',dmg:30},
+  {word:'ぜいきんたいさく',jp:'🧾 節税対策',dmg:25},
+  {word:'じゆうなじんせい',jp:'🌈 自由な人生',dmg:26},
+  {word:'まえにすすめ',jp:'➡️ 前に進め',dmg:22},
+  {word:'なかまをたいせつに',jp:'🤝 仲間を大切に',dmg:28},
+  {word:'おかねのちしき',jp:'📚 お金の知識',dmg:24},
+  {word:'しゃっきんきんし',jp:'🚫 借金禁止',dmg:25},
+  {word:'ふくりのまほう',jp:'✨ 複利の魔法',dmg:26},
+  {word:'こうどうあるのみ',jp:'🔥 行動あるのみ',dmg:27},
+  {word:'じぶんをしんじろ',jp:'💪 自分を信じろ',dmg:26},
+  {word:'りべだいにまなべ',jp:'🎓 リベ大に学べ',dmg:25},
+  {word:'しほんかのどうぐ',jp:'🔧 資本家の道具',dmg:26},
+  {word:'おかねはしゅだん',jp:'🧭 お金は手段',dmg:24},
+  {word:'いきがいをさがせ',jp:'🌸 生き甲斐を探せ',dmg:27},
+  {word:'ゆめをあきらめるな',jp:'⭐ 夢を諦めるな',dmg:28},
+  {word:'まいにちがくしゅう',jp:'📖 毎日学習',dmg:26},
+  {word:'しあわせにいきろ',jp:'😊 幸せに生きろ',dmg:25},
+  {word:'じゆうをてにいれろ',jp:'✊ 自由を手に入れろ',dmg:30},
+  {word:'おかねのべんきょう',jp:'💡 お金の勉強',dmg:26},
+  // 上級 idx 45-74（学長名言・10文字以上）
+  {word:'きょうがじんせいでいちばんわかいひ',jp:'🔥 今日が人生で一番若い日！',dmg:60},
+  {word:'しゃっきんなんかすんじゃねえ',jp:'😤 借金なんかすんじゃねえ！',dmg:50},
+  {word:'こうどうなくしてじゆうなし',jp:'🚀 行動なくして自由なし！',dmg:48},
+  {word:'ふくりはじんるいさいだいのはつめい',jp:'♾️ 複利は人類最大の発明',dmg:65},
+  {word:'おかねのべんきょうをはじめよう',jp:'📚 お金の勉強を始めよう',dmg:55},
+  {word:'ふくぎょうでじゆうをつかめ',jp:'💼 副業で自由を掴め',dmg:50},
+  {word:'じゆうなせいかつをてにいれる',jp:'🌈 自由な生活を手に入れる',dmg:55},
+  {word:'こがねやまをいっしょにのぼろうな',jp:'🏔️ 小金持ち山一緒に登ろうな',dmg:58},
+  {word:'いまがじんせいでいちばんわかい',jp:'⏰ 今が人生で一番若い',dmg:55},
+  {word:'おかねはしゅだんでありもくてきじゃない',jp:'🧭 お金は手段であり目的じゃない',dmg:68},
+  {word:'じことうしがさいこうのとうし',jp:'💎 自己投資が最高の投資',dmg:55},
+  {word:'まなびつづけるものがかつ',jp:'🎓 学び続ける者が勝つ',dmg:50},
+  {word:'ゆうきあるこうどうをとれ',jp:'💪 勇気ある行動を取れ',dmg:48},
+  {word:'しほんかのじんせいをいきろ',jp:'👑 資本家の人生を生きろ',dmg:52},
+  {word:'かちのあるじんせいをおくれ',jp:'🌟 価値ある人生を送れ',dmg:52},
+  {word:'けいぞくはちからなり',jp:'🏃 継続は力なり！',dmg:42},
+  {word:'あきらめなければゆめはかなう',jp:'⭐ 諦めなければ夢は叶う',dmg:55},
+  {word:'しっかりはたらきしっかりたのしめ',jp:'😄 しっかり働きしっかり楽しめ',dmg:60},
+  {word:'ひとにやさしくじぶんにきびしく',jp:'🤝 人に優しく自分に厳しく',dmg:62},
+  {word:'おかねもちになってしあわせになれ',jp:'💰 お金持ちになって幸せになれ',dmg:65},
+  {word:'まいにちすこしずつまえにすすめ',jp:'🐢 毎日少しずつ前に進め',dmg:58},
+  {word:'りべしてぃでけいざいてきじゆうへ',jp:'🏙️ リベシティで経済的自由へ',dmg:62},
+  {word:'はやくはじめるほどふくりがふえる',jp:'⏳ 早く始めるほど複利が増える',dmg:65},
+  {word:'ふくぎょうでしゅうにゅうのはしらをつくれ',jp:'🏗️ 副業で収入の柱を作れ',dmg:70},
+  {word:'しっかりはなしてしっかりきいて',jp:'👂 しっかり話してしっかり聴いて',dmg:60},
+  {word:'おすはやれや',jp:'🔥 オスはやれや！',dmg:35},
+  {word:'つれか',jp:'👥 つれか！',dmg:20},
+  {word:'じょしのみなさんはぐ',jp:'🤗 女子の皆さんハグ！',dmg:40},
+  {word:'ひとにあいや',jp:'🤝 人に会いや！',dmg:30},
+  {word:'くろーどこーどつかえや',jp:'💻 クロードコード使えや！',dmg:45},
+];
+
 // ── 商流拳ワード（学長名言・優先順序付き）──
 let shohouPriorityIdx=0;
 const SHOHOU_WORDS=[
@@ -497,6 +579,9 @@ function drawLightning(x1,y1,x2,y2,alpha=1){
   ctx.lineTo(x2,y2);ctx.stroke();ctx.shadowBlur=0;ctx.restore();
 }
 
+// ── 入力モード ──
+let inputMode='pc'; // 'pc' | 'smartphone'
+
 // ── ゲーム状態 ──
 let shohouCount=0;
 let bgScroll=0;
@@ -505,7 +590,7 @@ let G={
   playerHp:100,playerMaxHp:100,
   enemyHp:0,enemyMaxHp:0,
   score:0,combo:0,comboTimer:0,comboMax:0,
-  currentWord:null,typedIndex:0,wrongFlash:0,
+  currentWord:null,typedIndex:0,wrongFlash:0,flickTyped:'',
   wordQueue:[],wordsLeft:0,atkTimer:0,
   hitstop:0,playerHurt:0,enemyHurt:0,playerAtk:0,enemyKoTimer:0,
   dispPlayerHp:100,dispEnemyHp:0,frameN:0,
@@ -527,9 +612,10 @@ function startStage(idx){
   G.superGauge=0;G.superActive=0;G.superFlash=0;G.isShohouMode=false;G.shohouWord=null;
   G.wpmHistory=[];G.currentWpm=0;G.stageNoDamage=true;G.shohouUsed=false;
   const [lo,hi]=st.wordLevel;
-  const pool=[...WORD_DB].slice(lo,hi+1).sort(()=>Math.random()-0.5);
+  const db=inputMode==='smartphone'?WORD_DB_KANA:WORD_DB;
+  const pool=[...db].slice(lo,Math.min(hi+1,db.length)).sort(()=>Math.random()-0.5);
   G.wordQueue=pool.slice(0,st.wordCount).sort((a,b)=>a.word.length-b.word.length);
-  G.wordsLeft=G.wordQueue.length;
+  G.wordsLeft=G.wordQueue.length;G.flickTyped='';
   nextWord();G.phase='fight';
   G.playerHp=dd.playerHp;G.playerMaxHp=dd.playerHp;G.dispPlayerHp=dd.playerHp;
   stopChip();setBGMPitch(1.0);startBGM();SFX.fight();
@@ -539,10 +625,11 @@ function startStage(idx){
 function nextWord(){
   if(G.wordQueue.length===0){
     const st=STAGES[G.stageIdx];const [lo,hi]=st.wordLevel;
-    const pool=[...WORD_DB].slice(lo,hi+1).sort(()=>Math.random()-0.5);
+    const db=inputMode==='smartphone'?WORD_DB_KANA:WORD_DB;
+    const pool=[...db].slice(lo,Math.min(hi+1,db.length)).sort(()=>Math.random()-0.5);
     G.wordQueue=pool.slice(0,Math.min(6,pool.length));
   }
-  G.currentWord=G.wordQueue.shift();G.typedIndex=0;G.wrongFlash=0;
+  G.currentWord=G.wordQueue.shift();G.typedIndex=0;G.wrongFlash=0;G.flickTyped='';
   G.wordStartTime=performance.now();G.isShohouMode=false;
 }
 
@@ -962,15 +1049,31 @@ function drawWordPanel(){
   ctx.fillStyle=G.isShohouMode?'rgba(255,160,60,0.9)':'rgba(255,215,0,0.75)';
   ctx.font=`bold 17px "Hiragino Sans","Yu Gothic",monospace`;ctx.textAlign='center';
   ctx.fillText(word.jp,W/2,py+(G.isShohouMode?34:30));
-  const w=word.word;const typed=w.slice(0,G.typedIndex);const remaining=w.slice(G.typedIndex);
-  ctx.font='bold 42px monospace';ctx.textAlign='center';
-  const totalW=ctx.measureText(w).width;let curX=W/2-totalW/2;
-  ctx.fillStyle='#FFD700';ctx.shadowBlur=12;ctx.shadowColor='#FFD700';
-  typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,py+(G.isShohouMode?84:78));curX+=cw;});
-  ctx.shadowBlur=0;
-  if(remaining.length>0){const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#8888ff';ctx.fillText(nextCh,curX+cw/2,py+(G.isShohouMode?84:78));ctx.shadowBlur=0;curX+=cw;}
-  ctx.fillStyle='rgba(170,170,200,0.42)';
-  remaining.slice(1).split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,py+(G.isShohouMode?84:78));curX+=cw;});
+  const w=word.word;
+  const textY=py+(G.isShohouMode?84:78);
+  if(inputMode==='smartphone'){
+    // スマホ：ひらがな全体表示＋入力済みをハイライト
+    const typed=G.flickTyped;const remaining=w.slice(typed.length);
+    ctx.font='bold 34px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+    const totalW=ctx.measureText(w).width;let curX=W/2-totalW/2;
+    ctx.fillStyle='#FFD700';ctx.shadowBlur=12;ctx.shadowColor='#FFD700';
+    typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
+    ctx.shadowBlur=0;
+    if(remaining.length>0){const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#8888ff';ctx.fillText(nextCh,curX+cw/2,textY);ctx.shadowBlur=0;curX+=cw;}
+    ctx.fillStyle='rgba(170,170,200,0.42)';
+    remaining.slice(1).split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
+  }else{
+    // PC：ローマ字1文字ずつ
+    const typed=w.slice(0,G.typedIndex);const remaining=w.slice(G.typedIndex);
+    ctx.font='bold 42px monospace';ctx.textAlign='center';
+    const totalW=ctx.measureText(w).width;let curX=W/2-totalW/2;
+    ctx.fillStyle='#FFD700';ctx.shadowBlur=12;ctx.shadowColor='#FFD700';
+    typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
+    ctx.shadowBlur=0;
+    if(remaining.length>0){const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#8888ff';ctx.fillText(nextCh,curX+cw/2,textY);ctx.shadowBlur=0;curX+=cw;}
+    ctx.fillStyle='rgba(170,170,200,0.42)';
+    remaining.slice(1).split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
+  }
   ctx.fillStyle='rgba(150,150,180,0.65)';ctx.font='9px monospace';ctx.textAlign='right';ctx.fillText(`残り ${G.wordQueue.length+1}語`,px+pw-10,py+ph-10);
   if(G.wordQueue.length>0&&!G.isShohouMode){
     const nextW=G.wordQueue[0];
@@ -1277,6 +1380,41 @@ function drawDisclaimer(){
   ctx.fillText('Enter キー または クリックで進む',W/2,H-20);
 }
 
+// ── モード選択画面 ──
+function drawModeSelect(){
+  const t=G.frameN;
+  ctx.fillStyle='#000010';ctx.fillRect(0,0,W,H);
+  // 星
+  for(let i=0;i<60;i++){const sx=(i*137.5)%W,sy=(i*89.3)%H;ctx.globalAlpha=0.3+Math.sin(t*0.03+i)*0.2;ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(sx,sy,0.8,0,Math.PI*2);ctx.fill();}
+  ctx.globalAlpha=1;
+  ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,215,0,0.9)';ctx.font='bold 20px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.shadowBlur=20;ctx.shadowColor='#FFD700';
+  ctx.fillText('デバイスを選択',W/2,H/2-90);ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(180,160,255,0.7)';ctx.font='12px monospace';
+  ctx.fillText('あなたはどちらで戦う？',W/2,H/2-62);
+
+  const btns=[
+    {label:'💻  PCキーボード',sub:'ローマ字タイピング',mode:'pc',col:'#4488ff',y:H/2-28},
+    {label:'📱  スマホフリック',sub:'学長名言・ひらがな入力',mode:'smartphone',col:'#FFD700',y:H/2+44},
+  ];
+  btns.forEach(b=>{
+    const bw=260,bh=52,bx=W/2-bw/2;
+    const sel=inputMode===b.mode;
+    const pulse=sel?(Math.sin(t*0.1)*0.15+0.85):0.7;
+    ctx.shadowBlur=sel?22:8;ctx.shadowColor=b.col;
+    ctx.fillStyle=sel?b.col+'33':'rgba(10,10,30,0.9)';
+    ctx.strokeStyle=b.col;ctx.lineWidth=sel?2.5:1.5;
+    ctx.beginPath();ctx.roundRect(bx,b.y,bw,bh,12);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+    ctx.fillStyle=b.col;ctx.font=`bold 15px "Hiragino Sans","Yu Gothic",monospace`;
+    ctx.fillText(b.label,W/2,b.y+22);
+    ctx.fillStyle='rgba(200,200,220,0.6)';ctx.font='10px monospace';
+    ctx.fillText(b.sub,W/2,b.y+40);
+  });
+  ctx.fillStyle='rgba(140,140,175,0.5)';ctx.font='10px monospace';
+  ctx.fillText('タップ / クリックで選択・決定',W/2,H/2+118);
+}
+
 // ── タイトル画面（格好良くリニューアル）──
 const DIFF_OPTS=['easy','normal','hard'];
 const TITLE_QUOTES=[
@@ -1449,6 +1587,9 @@ function loop(){
   if(G.phase==='disclaimer'){
     drawDisclaimer();
   }
+  else if(G.phase==='modeselect'){
+    drawModeSelect();
+  }
   else if(G.phase==='title'){
     drawTitle();drawPts();updatePts();
     if(Math.random()<0.015)coinBurst(Math.random()*W,Math.random()*H*0.5);
@@ -1513,13 +1654,20 @@ function loop(){
 // ── キー入力 ──
 function handleKey(key,code){
   AC.resume();
+  // スマホフリック：ワードクリア完了シグナル
+  if(code==='__flickcomplete__'){
+    const word=G.isShohouMode?G.shohouWord:G.currentWord;
+    if(word)processWordComplete(word);
+    return;
+  }
   if(code==='Escape'){
     if(G.phase==='fight'){G.phase='paused';stopBGM();}
     else if(G.phase==='paused'){G.phase='resuming';G.resumeCountdown=180;startBGM();}
     return;
   }
   if(code==='Enter'){
-    if(G.phase==='disclaimer'){G.phase='title';startChip('title');return;}
+    if(G.phase==='disclaimer'){G.phase='modeselect';return;}
+    if(G.phase==='modeselect'){G.phase='title';startChip('title');return;}
     if(G.phase==='title'){stopChip();shohouPriorityIdx=0;shohouCount=0;startStage(0);}
     else if(G.phase==='stageclear'){
       if(G.stageIdx<STAGES.length-1){stopChip();startStage(G.stageIdx+1);}
@@ -1559,68 +1707,64 @@ function handleKey(key,code){
     enemyTypingShake=3;
     addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
     if(G.typedIndex>=word.word.length){
-      const elapsed=(performance.now()-G.wordStartTime)/1000;
-      const wpm=Math.round((word.word.length/5)/(elapsed/60));
-      G.wpmHistory.push(wpm);if(G.wpmHistory.length>10)G.wpmHistory.shift();
-      G.currentWpm=Math.round(G.wpmHistory.reduce((a,b)=>a+b,0)/G.wpmHistory.length);
-      if(G.currentWpm>=60)unlockAchievement('wpm60');
-      if(G.currentWpm>=80)unlockAchievement('wpm80');
-      if(G.currentWpm>=100)unlockAchievement('wpm100');
-      const comboBonus=Math.min(G.combo,10)*4;
-      // per-key分は既に引いてあるので、残り（コンボボーナス＋フィニッシュボーナス）を追加
-      const perKeyDealt=Math.floor(word.dmg/word.word.length)*word.word.length;
-      const finishBonus=word.dmg-perKeyDealt+comboBonus; // 端数＋コンボ
-      let dmg=Math.max(finishBonus,comboBonus+5);
-      const isShohouFinish=G.isShohouMode;
-      if(G.isShohouMode){
-        // 商流拳：残りHPの大部分をどかっと削る
-        dmg=Math.max(Math.floor(G.enemyMaxHp*0.62),G.enemyHp-1);
-        G.isShohouMode=false;G.shohouWord=null;G.superGauge=0;G.superActive=0;
-        stopShohouBGM();
-        zoomTargetScale=1.65;zoomCX=540;zoomCY=200;setTimeout(()=>zoomTargetScale=1.0,1600);
-        shake(34);flash('#ff8800',1.0);
-        superBurst(540,200);
-        // HPバー「どかっ」演出
-        hpLerpSpeed=0.45;hpBarFlash=30;
-      }
-      G.enemyHp=Math.max(0,G.enemyHp-dmg);G.score+=dmg*10*(1+G.combo*0.1|0);
-      // ワードクリアのダメージ数字（大）
-      if(isShohouFinish){
-        addDmgNum(542,155,'CRITICAL!!','#ffffff',true);
-        addDmgNum(542,188,`-${dmg}`,'#FFD700',true);
-        setTimeout(()=>addDmgNum(542,220,'商流拳！！','#ff9900',true),160);
-      }else{
-        addDmgNum(rand(510,575),rand(160,200),`-${dmg}`,'#ff6600',true);
-      }
-      G.combo++;G.comboTimer=120;G.comboMax=Math.max(G.comboMax,G.combo);
-      G.playerAtk=20;G.enemyHurt=22;G.hitstop=6;
-      shake(6);flash('#FFD700',0.42);SFX.wordClear();
-      wordClearBurst(word.word,W/2,H-110);
-      // ワードクリアでもHPバーに軽いフラッシュ
-      hpBarFlash=Math.max(hpBarFlash,12);hpLerpSpeed=Math.max(hpLerpSpeed,0.22);
-      addProj(220,185,'#FFD700');
-      // コンボマイルストーン
-      if(G.combo===10){SFX.combo10();comboBurst(W/2,H/2,10);unlockAchievement('combo10');}
-      if(G.combo===20){comboBurst(W/2,H/2,20);flash('#88ffaa',0.5);unlockAchievement('combo20');}
-      if(G.combo===30){comboBurst(W/2,H/2,30);flash('#FFD700',0.6);shake(12);unlockAchievement('combo30');}
-      if(G.combo===50){comboBurst(W/2,H/2,50);flash('#ffffff',0.8);shake(20);unlockAchievement('combo50');}
-      const prevGauge=G.superGauge;
-      G.superGauge=Math.min(100,G.superGauge+14+Math.min(G.combo,6)*4);
-      if(prevGauge<100&&G.superGauge>=100)SFX.gaugeFull();
-      if(G.enemyHp<=0){
-        G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
-        stopShohouBGM();
-        SFX.ko();shake(22);flash('#FFD700',0.92);G.enemyKoTimer=90;
-        unlockAchievement('first_kill');
-        if(G.stageNoDamage)unlockAchievement('nodamage');
-        for(let i=0;i<24;i++)setTimeout(()=>coinBurst(Math.random()*W,Math.random()*H*0.5),i*75);
-        setBGMPitch(1.0);stopBGM();
-        setTimeout(()=>{G.phase='stageclear';SFX.stageClear();startChip('clear');},1300);
-      }else{nextWord();}
+      processWordComplete(word);
     }
   }else{
     G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
   }
+}
+function processWordComplete(word){
+  const elapsed=(performance.now()-G.wordStartTime)/1000;
+  const wpm=Math.round((word.word.length/5)/(elapsed/60));
+  G.wpmHistory.push(wpm);if(G.wpmHistory.length>10)G.wpmHistory.shift();
+  G.currentWpm=Math.round(G.wpmHistory.reduce((a,b)=>a+b,0)/G.wpmHistory.length);
+  if(G.currentWpm>=60)unlockAchievement('wpm60');
+  if(G.currentWpm>=80)unlockAchievement('wpm80');
+  if(G.currentWpm>=100)unlockAchievement('wpm100');
+  const comboBonus=Math.min(G.combo,10)*4;
+  const perKeyDealt=Math.floor(word.dmg/word.word.length)*word.word.length;
+  const finishBonus=word.dmg-perKeyDealt+comboBonus;
+  let dmg=Math.max(finishBonus,comboBonus+5);
+  const isShohouFinish=G.isShohouMode;
+  if(G.isShohouMode){
+    dmg=Math.max(Math.floor(G.enemyMaxHp*0.62),G.enemyHp-1);
+    G.isShohouMode=false;G.shohouWord=null;G.superGauge=0;G.superActive=0;
+    stopShohouBGM();
+    zoomTargetScale=1.65;zoomCX=540;zoomCY=200;setTimeout(()=>zoomTargetScale=1.0,1600);
+    shake(34);flash('#ff8800',1.0);superBurst(540,200);
+    hpLerpSpeed=0.45;hpBarFlash=30;
+  }
+  G.enemyHp=Math.max(0,G.enemyHp-dmg);G.score+=dmg*10*(1+G.combo*0.1|0);
+  if(isShohouFinish){
+    addDmgNum(542,155,'CRITICAL!!','#ffffff',true);
+    addDmgNum(542,188,`-${dmg}`,'#FFD700',true);
+    setTimeout(()=>addDmgNum(542,220,'商流拳！！','#ff9900',true),160);
+  }else{
+    addDmgNum(rand(510,575),rand(160,200),`-${dmg}`,'#ff6600',true);
+  }
+  G.combo++;G.comboTimer=120;G.comboMax=Math.max(G.comboMax,G.combo);
+  G.playerAtk=20;G.enemyHurt=22;G.hitstop=6;
+  shake(6);flash('#FFD700',0.42);SFX.wordClear();
+  wordClearBurst(word.word,W/2,H-110);
+  hpBarFlash=Math.max(hpBarFlash,12);hpLerpSpeed=Math.max(hpLerpSpeed,0.22);
+  addProj(220,185,'#FFD700');
+  if(G.combo===10){SFX.combo10();comboBurst(W/2,H/2,10);unlockAchievement('combo10');}
+  if(G.combo===20){comboBurst(W/2,H/2,20);flash('#88ffaa',0.5);unlockAchievement('combo20');}
+  if(G.combo===30){comboBurst(W/2,H/2,30);flash('#FFD700',0.6);shake(12);unlockAchievement('combo30');}
+  if(G.combo===50){comboBurst(W/2,H/2,50);flash('#ffffff',0.8);shake(20);unlockAchievement('combo50');}
+  const prevGauge=G.superGauge;
+  G.superGauge=Math.min(100,G.superGauge+14+Math.min(G.combo,6)*4);
+  if(prevGauge<100&&G.superGauge>=100)SFX.gaugeFull();
+  if(G.enemyHp<=0){
+    G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
+    stopShohouBGM();
+    SFX.ko();shake(22);flash('#FFD700',0.92);G.enemyKoTimer=90;
+    unlockAchievement('first_kill');
+    if(G.stageNoDamage)unlockAchievement('nodamage');
+    for(let i=0;i<24;i++)setTimeout(()=>coinBurst(Math.random()*W,Math.random()*H*0.5),i*75);
+    setBGMPitch(1.0);stopBGM();
+    setTimeout(()=>{G.phase='stageclear';SFX.stageClear();startChip('clear');},1300);
+  }else{nextWord();}
 }
 
 document.addEventListener('keydown',e=>{
@@ -1628,7 +1772,33 @@ document.addEventListener('keydown',e=>{
   handleKey(e.key.toLowerCase(),e.code);
 });
 const mobileInput=document.getElementById('mobileInput');
+let composing=false;
+mobileInput.addEventListener('compositionstart',()=>{composing=true;});
+mobileInput.addEventListener('compositionend',e=>{
+  composing=false;
+  if(inputMode!=='smartphone')return;
+  const val=e.data||mobileInput.value;if(!val)return;
+  AC.resume();
+  // フリック入力：compositionendで確定した文字を追加
+  const word=G.isShohouMode?G.shohouWord:G.currentWord;
+  if(!word||G.phase!=='fight')return;
+  G.flickTyped+=val;
+  mobileInput.value='';
+  const target=word.word;
+  if(target.startsWith(G.flickTyped)){
+    if(G.flickTyped===target){
+      // ワードクリア
+      G.typedIndex=target.length;
+      handleKey('__flickcomplete__','__flickcomplete__');
+    }
+    // 正しく入力中→コンボタイマーを維持
+  }else{
+    // ミス
+    G.flickTyped='';G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
+  }
+});
 mobileInput.addEventListener('input',e=>{
+  if(inputMode==='smartphone'||composing)return;
   const val=e.data;if(!val)return;
   AC.resume();handleKey(val.toLowerCase(),'Key'+val.toUpperCase());mobileInput.value='';
 });
@@ -1638,11 +1808,19 @@ mobileInput.addEventListener('keydown',e=>{
 cvs.addEventListener('click',e=>{
   AC.resume();mobileInput.focus();
   if(G.phase==='disclaimer'){
-    // iOS対策：ユーザー操作のタイミングで全音源を一度解放
     ['強い者との戦い.mp3','ゲームクリアー！.mp3','悲壮.mp3','Escort.mp3','Thunderbolt.mp3'].forEach(f=>{
       const a=new Audio(f);a.volume=0;a.play().then(()=>a.pause()).catch(()=>{});
     });
-    G.phase='title';startChip('title');return;
+    G.phase='modeselect';return;
+  }
+  if(G.phase==='modeselect'){
+    const rect=cvs.getBoundingClientRect();const scaleX=W/rect.width,scaleY=H/rect.height;
+    const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
+    const bw=260,bx=W/2-bw/2;
+    const pcY=H/2-28,spY=H/2+44,bh=52;
+    if(mx>=bx&&mx<=bx+bw&&my>=pcY&&my<=pcY+bh){inputMode='pc';G.phase='title';startChip('title');return;}
+    if(mx>=bx&&mx<=bx+bw&&my>=spY&&my<=spY+bh){inputMode='smartphone';G.phase='title';startChip('title');return;}
+    return;
   }
   if(G.phase==='title'){
     const rect=cvs.getBoundingClientRect();const scaleX=W/rect.width,scaleY=H/rect.height;
