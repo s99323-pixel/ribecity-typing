@@ -394,27 +394,49 @@ function drawDmgNums(){
     return d.life>0;
   });
 }
-function addPt(x,y,vx,vy,life,color,size=4){pts.push({x,y,vx,vy,life,maxLife:life,color,size});}
+function addPt(x,y,vx,vy,life,color,size=4,type='circle'){pts.push({x,y,vx,vy,life,maxLife:life,color,size,type});}
+function addStar(x,y,vx,vy,life,color,size){addPt(x,y,vx,vy,life,color,size,'star');}
+function addDiamond(x,y,vx,vy,life,color,size){addPt(x,y,vx,vy,life,color,size,'diamond');}
+function addSpark(x,y,vx,vy,life,color,size){addPt(x,y,vx,vy,life,color,size,'spark');}
 function coinBurst(x,y){
-  for(let i=0;i<18;i++){const a=Math.random()*Math.PI*2,s=Math.random()*10+2;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-4,rand(32,60),'#FFD700',rand(4,10));}
+  for(let i=0;i<12;i++){const a=Math.random()*Math.PI*2,s=Math.random()*10+2;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-4,rand(32,60),'#FFD700',rand(4,10));}
+  for(let i=0;i<8;i++){const a=Math.random()*Math.PI*2,s=Math.random()*12+3;addStar(x,y,Math.cos(a)*s,Math.sin(a)*s-5,rand(35,65),'#FFD700',rand(5,9));}
   addPt(x,y,0,0,20,'#fff',90);
 }
 function hitBurst(x,y,col='#FFD700'){
-  for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,s=Math.random()*8+1;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-2,rand(20,36),col,rand(3,8));}
+  for(let i=0;i<8;i++){const a=Math.random()*Math.PI*2,s=Math.random()*8+1;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-2,rand(20,36),col,rand(3,8));}
+  for(let i=0;i<8;i++){const a=Math.random()*Math.PI*2,s=Math.random()*14+4;addSpark(x,y,Math.cos(a)*s,Math.sin(a)*s-3,rand(12,24),col,rand(4,9));}
   addPt(x,y,0,0,16,col,60);
 }
 function wrongBurst(x,y){
-  for(let i=0;i<10;i++){const a=Math.random()*Math.PI*2,s=Math.random()*5+1;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s,rand(14,28),'#4488ff',rand(2,6));}
+  for(let i=0;i<8;i++){const a=Math.random()*Math.PI*2,s=Math.random()*5+1;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s,rand(14,28),'#4488ff',rand(2,6));}
+  for(let i=0;i<5;i++){const a=Math.random()*Math.PI*2,s=Math.random()*7+2;addDiamond(x,y,Math.cos(a)*s,Math.sin(a)*s,rand(16,30),'#66aaff',rand(4,7));}
 }
 function superBurst(x,y){
   const cols=['#FFD700','#ff6600','#ff3300','#fff','#ffcc00','#ff9900','#ffee44'];
-  for(let i=0;i<80;i++){const a=Math.random()*Math.PI*2,s=Math.random()*18+5;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-10,rand(45,90),cols[i%cols.length],rand(4,14));}
+  for(let i=0;i<40;i++){const a=Math.random()*Math.PI*2,s=Math.random()*18+5;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-10,rand(45,90),cols[i%cols.length],rand(4,14));}
+  for(let i=0;i<24;i++){const a=Math.random()*Math.PI*2,s=Math.random()*20+6;addStar(x,y,Math.cos(a)*s,Math.sin(a)*s-8,rand(50,95),'#FFD700',rand(6,12));}
+  for(let i=0;i<16;i++){const a=Math.random()*Math.PI*2,s=Math.random()*16+4;addSpark(x,y,Math.cos(a)*s,Math.sin(a)*s-6,rand(20,40),'#ffffff',rand(5,10));}
   // リング状エフェクト
   for(let i=0;i<40;i++){const a=(i/40)*Math.PI*2,r=20;addPt(x+Math.cos(a)*r,y+Math.sin(a)*r,Math.cos(a)*12,Math.sin(a)*12,rand(30,55),'#FFD700',rand(3,7));}
 }
 function comboBurst(x,y,combo){
-  const n=Math.min(combo*4,60);const cols=['#FFD700','#ffffff','#ff9900'];
+  const n=Math.min(combo*3,54);const cols=['#FFD700','#ffffff','#ff9900'];
   for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*12+3;addPt(x,y,Math.cos(a)*s,Math.sin(a)*s-3,rand(25,50),cols[i%cols.length],rand(3,8));}
+  const starCols=['#FFD700','#ffffff','#ffee88'];
+  for(let i=0;i<Math.min(combo*2,30);i++){const a=Math.random()*Math.PI*2,s=Math.random()*15+4;addStar(x,y,Math.cos(a)*s,Math.sin(a)*s-4,rand(30,60),starCols[i%starCols.length],rand(5,10));}
+  for(let i=0;i<Math.min(combo,12);i++){const a=Math.random()*Math.PI*2,s=Math.random()*10+3;addDiamond(x,y,Math.cos(a)*s,Math.sin(a)*s-3,rand(28,55),'#88ffff',rand(4,8));}
+}
+function wordClearBurst(word,px,py){
+  // ワード文字が四方に飛び散る
+  const chars=word.split('');const cx=px;const cy=py;
+  chars.forEach((ch,i)=>{
+    const a=(i/chars.length)*Math.PI*2;const s=rand(4,10);
+    addPt(cx,cy,Math.cos(a)*s,Math.sin(a)*s-3,rand(30,50),'#FFD700',0,'text_'+ch);
+  });
+  // 追加スパーク
+  for(let i=0;i<12;i++){const a=Math.random()*Math.PI*2,s=rand(3,9);addSpark(cx,cy,Math.cos(a)*s,Math.sin(a)*s-2,rand(15,30),'#FFD700',rand(3,7));}
+  for(let i=0;i<6;i++){const a=Math.random()*Math.PI*2,s=rand(5,12);addStar(cx,cy,Math.cos(a)*s,Math.sin(a)*s-3,rand(20,40),'#ffffff',rand(4,8));}
 }
 function rand(a,b){return Math.random()*(b-a)+a;}
 function lerp(a,b,t){return a+(b-a)*t;}
@@ -433,11 +455,42 @@ function updateDrawProjs(){
   });
 }
 function updatePts(){pts=pts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.vx*=0.96;p.life--;return p.life>0;});}
+function drawStar5(cx,cy,r){
+  ctx.beginPath();
+  for(let i=0;i<10;i++){const a=i*Math.PI/5-Math.PI/2;const rad=i%2===0?r:r*0.42;ctx.lineTo(cx+Math.cos(a)*rad,cy+Math.sin(a)*rad);}
+  ctx.closePath();ctx.fill();
+}
+function drawDiamond(cx,cy,r){
+  ctx.beginPath();ctx.moveTo(cx,cy-r);ctx.lineTo(cx+r*0.6,cy);ctx.lineTo(cx,cy+r);ctx.lineTo(cx-r*0.6,cy);ctx.closePath();ctx.fill();
+}
 function drawPts(){
   pts.forEach(p=>{
-    const a=p.life/p.maxLife;ctx.globalAlpha=a;
-    if(p.size>30){ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.shadowBlur=8;ctx.shadowColor=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*(1-a)*0.8,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;}
-    else{ctx.shadowBlur=6;ctx.shadowColor=p.color;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}
+    const a=p.life/p.maxLife;ctx.save();ctx.globalAlpha=a;
+    if(p.size>30){
+      ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.shadowBlur=8;ctx.shadowColor=p.color;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size*(1-a)*0.8,0,Math.PI*2);ctx.stroke();
+    }else if(p.type==='star'){
+      const r=p.size*Math.max(0.2,a);ctx.shadowBlur=10;ctx.shadowColor=p.color;ctx.fillStyle=p.color;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate((1-a)*Math.PI*2);ctx.translate(-p.x,-p.y);
+      drawStar5(p.x,p.y,r);ctx.restore();
+    }else if(p.type==='diamond'){
+      const r=p.size*Math.max(0.2,a);ctx.shadowBlur=8;ctx.shadowColor=p.color;ctx.fillStyle=p.color;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate((1-a)*Math.PI);ctx.translate(-p.x,-p.y);
+      drawDiamond(p.x,p.y,r);ctx.restore();
+    }else if(p.type==='spark'){
+      const len=p.size*a*2;const spd=Math.sqrt(p.vx*p.vx+p.vy*p.vy)||1;const nx=p.vx/spd,ny=p.vy/spd;
+      ctx.shadowBlur=8;ctx.shadowColor=p.color;ctx.strokeStyle=p.color;ctx.lineWidth=Math.max(0.5,p.size*a*0.4);
+      ctx.beginPath();ctx.moveTo(p.x-nx*len,p.y-ny*len);ctx.lineTo(p.x,p.y);ctx.stroke();
+    }else if(p.type&&p.type.startsWith('text_')){
+      const ch=p.type.slice(5);const sz=Math.max(6,12*a);
+      ctx.shadowBlur=12;ctx.shadowColor=p.color;ctx.fillStyle=p.color;
+      ctx.font=`bold ${sz|0}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(ch,p.x,p.y);
+    }else{
+      ctx.shadowBlur=6;ctx.shadowColor=p.color;ctx.fillStyle=p.color;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2);ctx.fill();
+    }
+    ctx.shadowBlur=0;ctx.restore();
   });
   ctx.globalAlpha=1;
 }
@@ -945,14 +998,26 @@ function drawShohouEffect(){
   const t=shohouTimer;const maxT=220;
   // フェードイン
   if(t>155){const alpha=Math.min(1,(maxT-t)/65*0.92);ctx.fillStyle=`rgba(0,0,0,${alpha})`;ctx.fillRect(0,0,W,H);}
-  // 色フラッシュシーケンス（RGB分離っぽい）
+  // 色フラッシュシーケンス（RGB分離 強化版）
   if(t>158&&t<185){
     const age=185-t;const fl=age/27;
     ctx.save();
-    ctx.globalAlpha=fl*0.35;ctx.fillStyle='#ff0000';ctx.fillRect(-4,0,W,H);
-    ctx.globalAlpha=fl*0.35;ctx.fillStyle='#0000ff';ctx.fillRect(4,0,W,H);
-    ctx.globalAlpha=fl*0.25;ctx.fillStyle='#00ff00';ctx.fillRect(0,3,W,H);
+    // ドラスティックな色ずれ：R層を右、B層を左に大きくシフト
+    ctx.globalAlpha=fl*0.55;ctx.fillStyle='#ff0000';ctx.fillRect(-10,0,W,H);
+    ctx.globalAlpha=fl*0.55;ctx.fillStyle='#0000ff';ctx.fillRect(10,0,W,H);
+    ctx.globalAlpha=fl*0.35;ctx.fillStyle='#00ff00';ctx.fillRect(0,6,W,H);
+    // ノイズライン：走査線ぽい横線
+    ctx.globalAlpha=fl*0.2;ctx.fillStyle='#ffffff';
+    for(let y=0;y<H;y+=6){ctx.fillRect(0,y,W,1);}
     ctx.restore();
+  }
+  // 商流発動直後：画面端パルス
+  if(t>185&&t<200){
+    const fl=(200-t)/15;
+    ctx.save();ctx.globalAlpha=fl*0.4;
+    const g=ctx.createRadialGradient(W/2,H/2,W*0.1,W/2,H/2,W*0.75);
+    g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(255,80,0,1)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.restore();
   }
   // 全方位放射線（2層）
   if(t>100&&t<162){
@@ -1169,6 +1234,16 @@ function drawBG(){
   }
   if(lightningTimer>0&&G.combo>=10){
     ctx.globalAlpha=0.08;ctx.fillStyle='#aaccff';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;
+  }
+  // コンボ10以上：画面端ビートパルス（拍動）
+  if(G.combo>=10){
+    const beat=Math.sin(G.frameN*0.18)*0.5+0.5; // 約1.7拍/秒
+    const pulseA=beat*beat*0.18*Math.min((G.combo-10)/10+0.4,1);
+    const hue=G.combo>=20?200:40;
+    const eg=ctx.createRadialGradient(W/2,H/2,W*0.25,W/2,H/2,W*0.85);
+    eg.addColorStop(0,'rgba(0,0,0,0)');
+    eg.addColorStop(1,`hsla(${hue},100%,60%,${pulseA})`);
+    ctx.fillStyle=eg;ctx.fillRect(0,0,W,H);
   }
 }
 
@@ -1477,6 +1552,7 @@ function handleKey(key,code){
       G.combo++;G.comboTimer=120;G.comboMax=Math.max(G.comboMax,G.combo);
       G.playerAtk=20;G.enemyHurt=22;G.hitstop=6;
       shake(6);flash('#FFD700',0.42);SFX.wordClear();
+      wordClearBurst(word.word,W/2,H-110);
       // ワードクリアでもHPバーに軽いフラッシュ
       hpBarFlash=Math.max(hpBarFlash,12);hpLerpSpeed=Math.max(hpLerpSpeed,0.22);
       addProj(220,185,'#FFD700');
