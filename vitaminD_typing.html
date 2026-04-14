@@ -42,7 +42,15 @@ function resize(){
 }
 resize();
 window.addEventListener('resize',resize);
-if(window.visualViewport)window.visualViewport.addEventListener('resize',resize);
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',()=>{
+    resize();
+    if(inputMode==='smartphone'){window.scrollTo(0,0);}
+  });
+  window.visualViewport.addEventListener('scroll',()=>{
+    if(inputMode==='smartphone'){window.scrollTo(0,0);}
+  });
+}
 
 // ── AUDIO ──
 const AC=new (window.AudioContext||window.webkitAudioContext)();
@@ -1050,14 +1058,15 @@ function drawHUD(){
 function drawWordPanel(){
   const word=G.isShohouMode?G.shohouWord:G.currentWord;
   if(!word)return;
-  const pw=460,ph=G.isShohouMode?130:110,px=W/2-pw/2,py=H-138-(G.isShohouMode?15:0);
+  const isSP=inputMode==='smartphone';
+  const pw=isSP?500:460,ph=isSP?160:(G.isShohouMode?130:110),px=W/2-pw/2,py=isSP?(H-174):(H-138-(G.isShohouMode?15:0));
   ctx.fillStyle='rgba(0,0,20,0.90)';
   ctx.shadowBlur=G.isShohouMode?14:10;
   ctx.shadowColor=G.isShohouMode?'#ff6600':'#0033aa';
   ctx.beginPath();ctx.roundRect(px,py,pw,ph,12);ctx.fill();
   ctx.strokeStyle=G.isShohouMode?'rgba(255,120,0,0.8)':'rgba(100,150,255,0.35)';
   ctx.lineWidth=G.isShohouMode?2:1.5;ctx.beginPath();ctx.roundRect(px,py,pw,ph,12);ctx.stroke();ctx.shadowBlur=0;
-  if(G.isShohouMode){
+  if(G.isShohouMode&&!isSP){
     const blink=Math.floor(G.frameN/18)%2===0;
     ctx.fillStyle='rgba(0,0,0,0.7)';ctx.beginPath();ctx.roundRect(px,py-36,pw,32,8);ctx.fill();
     ctx.strokeStyle='rgba(255,150,0,0.6)';ctx.lineWidth=1.2;ctx.beginPath();ctx.roundRect(px,py-36,pw,32,8);ctx.stroke();
@@ -1068,23 +1077,71 @@ function drawWordPanel(){
     ctx.fillStyle='#ff6600';ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.shadowBlur=8;ctx.shadowColor='#ff3300';
     ctx.fillText('⚡ 商流拳発動！名言を打て！',W/2,py+16);ctx.shadowBlur=0;
   }
-  ctx.fillStyle=G.isShohouMode?'rgba(255,160,60,0.9)':'rgba(255,215,0,0.75)';
-  ctx.font=`bold 17px "Hiragino Sans","Yu Gothic",monospace`;ctx.textAlign='center';
-  ctx.fillText(word.jp,W/2,py+(G.isShohouMode?34:30));
+  if(!isSP){
+    ctx.fillStyle=G.isShohouMode?'rgba(255,160,60,0.9)':'rgba(255,215,0,0.75)';
+    ctx.font=`bold 17px "Hiragino Sans","Yu Gothic",monospace`;ctx.textAlign='center';
+    ctx.fillText(word.jp,W/2,py+(G.isShohouMode?34:30));
+  }
   const w=word.word;
   const textY=py+(G.isShohouMode?84:78);
-  if(inputMode==='smartphone'){
-    // スマホ：ひらがな全体表示＋入力済みをハイライト
+  if(isSP){
     const typed=G.flickTyped;const remaining=w.slice(typed.length);
-    ctx.font='bold 34px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
-    const totalW=ctx.measureText(w).width;let curX=W/2-totalW/2;
-    ctx.fillStyle='#FFD700';ctx.shadowBlur=12;ctx.shadowColor='#FFD700';
-    typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
-    ctx.shadowBlur=0;
-    if(remaining.length>0){const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#8888ff';ctx.fillText(nextCh,curX+cw/2,textY);ctx.shadowBlur=0;curX+=cw;}
-    ctx.fillStyle='rgba(170,170,200,0.42)';
-    remaining.slice(1).split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
-  }else{
+    if(G.isShohouMode){
+      // ── 商流拳スマホ：タップ発動モード ──
+      const pulse=0.7+0.3*Math.sin(G.frameN*0.18);
+      ctx.save();
+      ctx.shadowBlur=22*pulse;ctx.shadowColor='#ff5500';
+      ctx.fillStyle=`rgba(255,${Math.floor(80+70*pulse)},0,${0.92+0.08*pulse})`;
+      ctx.font=`bold ${Math.floor(22+4*pulse)}px "Hiragino Sans","Yu Gothic",monospace`;ctx.textAlign='center';
+      ctx.fillText('⚡ タップして商流拳発動！',W/2,py+52);ctx.restore();
+      ctx.fillStyle='rgba(255,200,100,0.8)';ctx.font='bold 15px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+      ctx.fillText(word.jp,W/2,py+95);
+      ctx.fillStyle='rgba(200,120,0,0.5)';ctx.font='11px monospace';ctx.textAlign='center';
+      ctx.fillText('（画面タップで即発動・文字入力は不要）',W/2,py+125);
+    } else {
+      // ── 通常ワード：次の1文字を左に大表示・右に進捗 ──
+      const nextCh=remaining.length>0?remaining[0]:'✓';
+      const pulse=0.85+0.15*Math.sin(G.frameN*0.15);
+      // 次の文字ボックス
+      const bxW=92,bxH=86,bxX=px+10,bxY=py+10;
+      ctx.save();
+      ctx.shadowBlur=18*pulse;ctx.shadowColor='#00ccff';
+      ctx.fillStyle='rgba(0,18,48,0.96)';ctx.beginPath();ctx.roundRect(bxX,bxY,bxW,bxH,10);ctx.fill();
+      ctx.strokeStyle=`rgba(0,180,255,${0.45+0.55*pulse})`;ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(bxX,bxY,bxW,bxH,10);ctx.stroke();
+      ctx.font=`bold 62px "Hiragino Sans","Yu Gothic",monospace`;ctx.textAlign='center';
+      ctx.fillStyle=`rgba(255,255,255,${0.82+0.18*pulse})`;
+      ctx.shadowBlur=22*pulse;ctx.shadowColor='#88ddff';
+      ctx.fillText(nextCh,bxX+bxW/2,bxY+74);ctx.restore();
+      // ラベル
+      ctx.fillStyle='rgba(100,190,255,0.72)';ctx.font='bold 9px "Hiragino Sans",monospace';ctx.textAlign='center';
+      ctx.fillText('次の文字',bxX+bxW/2,bxY-5);
+      // 右エリア
+      const raX=bxX+bxW+14,raW=pw-(bxW+10+14+8);
+      // 日本語ヒント
+      ctx.fillStyle='rgba(255,215,0,0.82)';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='left';
+      ctx.fillText(word.jp,raX,py+30);
+      // ひらがな（入力済み＋次＋残り）
+      const wrdY=py+78;
+      ctx.font='bold 24px "Hiragino Sans","Yu Gothic",monospace';
+      let cx2=raX;
+      ctx.fillStyle='#FFD700';ctx.shadowBlur=8;ctx.shadowColor='#FFD700';
+      typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,cx2,wrdY);cx2+=cw;});
+      ctx.shadowBlur=0;
+      if(remaining.length>0){
+        ctx.fillStyle='#ffffff';const nc=remaining[0];const ncw=ctx.measureText(nc).width;ctx.fillText(nc,cx2,wrdY);cx2+=ncw;
+        ctx.fillStyle='rgba(155,155,185,0.45)';
+        remaining.slice(1).split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,cx2,wrdY);cx2+=cw;});
+      }
+      // 進捗バー
+      const prog=w.length>0?typed.length/w.length:0;
+      const barX=raX,barY=py+104,barW2=raW-4,barH2=9;
+      ctx.fillStyle='rgba(35,35,65,0.85)';ctx.beginPath();ctx.roundRect(barX,barY,barW2,barH2,4);ctx.fill();
+      if(prog>0){
+        ctx.fillStyle=`hsl(${Math.floor(200-80*prog)},100%,55%)`;
+        ctx.beginPath();ctx.roundRect(barX,barY,Math.max(1,barW2*prog),barH2,4);ctx.fill();
+      }
+    }
+  } else {
     // PC：ローマ字1文字ずつ
     const typed=w.slice(0,G.typedIndex);const remaining=w.slice(G.typedIndex);
     ctx.font='bold 42px monospace';ctx.textAlign='center';
@@ -1821,12 +1878,15 @@ mobileInput.addEventListener('keydown',e=>{
   if(e.key==='Backspace'||e.key==='Enter'){e.stopPropagation();AC.resume();handleKey(e.key.toLowerCase(),e.code||e.key);}
 });
 
+function toHiragana(str){return str.replace(/[\u30A1-\u30F6]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));}
 function processFlickChar(ch){
   if(G.phase!=='fight'||G.hitstop>0)return;
   const word=G.isShohouMode?G.shohouWord:G.currentWord;
   if(!word)return;
+  const normalized=toHiragana(ch); // カタカナで来てもひらがなに変換
   const expected=word.word[G.flickTyped.length];
-  if(ch===expected){
+  if(normalized===expected){
+    ch=normalized;
     G.flickTyped+=ch;
     SFX.correct(G.flickTyped.length-1,word.word.length);
     const keyDmg=Math.max(1,Math.floor(word.dmg/word.word.length));
@@ -1859,6 +1919,11 @@ cvs.addEventListener('click',e=>{
     if(mx>=bx&&mx<=bx+bw&&my>=pcY&&my<=pcY+bh){inputMode='pc';resize();G.phase='title';startChip('title');return;}
     if(mx>=bx&&mx<=bx+bw&&my>=spY&&my<=spY+bh){inputMode='smartphone';resize();G.phase='title';startChip('title');return;}
     return;
+  }
+  if(G.phase==='fight'&&inputMode==='smartphone'&&G.isShohouMode){
+    // 商流拳タップ発動
+    G.flickTyped=G.shohouWord.word;G.typedIndex=G.shohouWord.word.length;
+    processWordComplete(G.shohouWord);resetFlickInput();return;
   }
   if(G.phase==='title'){
     const rect=cvs.getBoundingClientRect();const scaleX=W/rect.width,scaleY=H/rect.height;
