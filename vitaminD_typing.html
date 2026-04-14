@@ -1033,28 +1033,34 @@ function drawWordPanel(){
   ctx.fillText(word.jp,W/2,py+(G.isShohouMode?34:30));
   const w=word.word;
   const textY=py+(G.isShohouMode?84:78);
-  if(inputMode==='smartphone'){
-    // スマホ：ひらがな全体表示＋入力済みをハイライト
-    const typed=G.flickTyped;const remaining=w.slice(typed.length);
-    ctx.font='bold 34px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+  const useFlick=inputMode==='smartphone'&&(G.stageIdx===0||G.isShohouMode);
+  {
+    // 共通描画（PC・スマホ2面以降はtypedIndex、スマホ1面・商流拳はflickTyped）
+    const typed=useFlick?G.flickTyped:w.slice(0,G.typedIndex);
+    const remaining=w.slice(typed.length);
+    const font=useFlick?'bold 34px "Hiragino Sans","Yu Gothic",monospace':'bold 42px monospace';
+    ctx.font=font;ctx.textAlign='center';
     const totalW=ctx.measureText(w).width;let curX=W/2-totalW/2;
     ctx.fillStyle='#FFD700';ctx.shadowBlur=12;ctx.shadowColor='#FFD700';
     typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
     ctx.shadowBlur=0;
-    if(remaining.length>0){const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#8888ff';ctx.fillText(nextCh,curX+cw/2,textY);ctx.shadowBlur=0;curX+=cw;}
+    if(remaining.length>0){
+      const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;
+      // 商流拳：次の文字を特に強調
+      if(G.isShohouMode){
+        const pulse=0.8+0.2*Math.sin(G.frameN*0.2);
+        ctx.fillStyle=`rgba(255,${Math.floor(180+75*pulse)},0,1)`;
+        ctx.shadowBlur=18*pulse;ctx.shadowColor='#ffaa00';
+      }else{ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#8888ff';}
+      ctx.fillText(nextCh,curX+cw/2,textY);ctx.shadowBlur=0;curX+=cw;
+    }
     ctx.fillStyle='rgba(170,170,200,0.42)';
     remaining.slice(1).split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
-  }else{
-    // PC：ローマ字1文字ずつ
-    const typed=w.slice(0,G.typedIndex);const remaining=w.slice(G.typedIndex);
-    ctx.font='bold 42px monospace';ctx.textAlign='center';
-    const totalW=ctx.measureText(w).width;let curX=W/2-totalW/2;
-    ctx.fillStyle='#FFD700';ctx.shadowBlur=12;ctx.shadowColor='#FFD700';
-    typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
-    ctx.shadowBlur=0;
-    if(remaining.length>0){const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#8888ff';ctx.fillText(nextCh,curX+cw/2,textY);ctx.shadowBlur=0;curX+=cw;}
-    ctx.fillStyle='rgba(170,170,200,0.42)';
-    remaining.slice(1).split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
+    // 商流拳スマホ：ひらがな入力ヒント
+    if(G.isShohouMode&&inputMode==='smartphone'){
+      ctx.fillStyle='rgba(255,200,100,0.7)';ctx.font='10px monospace';ctx.textAlign='center';
+      ctx.fillText('← ひらがなフリックで打ってね',W/2,py+ph-8);
+    }
   }
   ctx.fillStyle='rgba(150,150,180,0.65)';ctx.font='9px monospace';ctx.textAlign='right';ctx.fillText(`残り ${G.wordQueue.length+1}語`,px+pw-10,py+ph-10);
   if(G.wordQueue.length>0&&!G.isShohouMode){
@@ -1784,18 +1790,29 @@ function resetFlickInput(){mobileInput.value='';flickLastLen=0;}
 mobileInput.addEventListener('compositionstart',()=>{composing=true;});
 mobileInput.addEventListener('compositionend',e=>{composing=false;});
 mobileInput.addEventListener('input',e=>{
-  if(inputMode==='smartphone'&&G.stageIdx===0){
-    // 1面：ひらがなフリック入力
+  if(inputMode==='smartphone'){
+    if(G.stageIdx===0||G.isShohouMode){
+      // 1面 or 商流拳：ひらがなフリック
+      AC.resume();
+      const val=mobileInput.value;
+      if(val.length>flickLastLen){
+        const newChars=[...val.slice(flickLastLen)].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch));
+        flickLastLen=val.length;
+        newChars.forEach(ch=>processFlickChar(ch));
+      }else{flickLastLen=val.length;}
+      return;
+    }
+    // 2面以降：アルファベット value追跡（フリック式）
+    if(composing)return;
     AC.resume();
     const val=mobileInput.value;
     if(val.length>flickLastLen){
-      const newChars=[...val.slice(flickLastLen)].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch));
+      const newChars=val.slice(flickLastLen).toLowerCase();
       flickLastLen=val.length;
-      newChars.forEach(ch=>processFlickChar(ch));
+      [...newChars].forEach(ch=>{if(/[a-z0-9_]/.test(ch))handleKey(ch,'Key'+ch.toUpperCase());});
     }else{flickLastLen=val.length;}
     return;
   }
-  // 2面以降：ローマ字入力（PCと同じ）
   if(composing)return;
   const val=e.data;if(!val)return;
   AC.resume();handleKey(val.toLowerCase(),'Key'+val.toUpperCase());mobileInput.value='';
