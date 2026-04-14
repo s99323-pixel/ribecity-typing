@@ -18,6 +18,18 @@ canvas{display:block;touch-action:none;}
 'use strict';
 const cvs=document.getElementById('c');
 const ctx=cvs.getContext('2d');
+// roundRect ポリフィル（古いブラウザ・Safari対応）
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    const rad=typeof r==='number'?r:(Array.isArray(r)?r[0]:0)||0;
+    this.moveTo(x+rad,y);
+    this.lineTo(x+w-rad,y);this.arcTo(x+w,y,x+w,y+rad,rad);
+    this.lineTo(x+w,y+h-rad);this.arcTo(x+w,y+h,x+w-rad,y+h,rad);
+    this.lineTo(x+rad,y+h);this.arcTo(x,y+h,x,y+h-rad,rad);
+    this.lineTo(x,y+rad);this.arcTo(x,y,x+rad,y,rad);
+    this.closePath();return this;
+  };
+}
 const W=720,H=405;
 cvs.width=W;cvs.height=H;
 function resize(){
