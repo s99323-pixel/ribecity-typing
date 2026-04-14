@@ -1814,25 +1814,27 @@ document.addEventListener('keydown',e=>{
 const mobileInput=document.getElementById('mobileInput');
 let composing=false;
 let flickLastLen=0;
-let flickDebounce=null;
-function resetFlickInput(){mobileInput.value='';flickLastLen=0;clearTimeout(flickDebounce);flickDebounce=null;}
+function resetFlickInput(){mobileInput.value='';flickLastLen=0;}
 mobileInput.addEventListener('compositionstart',()=>{composing=true;});
-mobileInput.addEventListener('compositionend',e=>{composing=false;});
+mobileInput.addEventListener('compositionend',e=>{
+  composing=false;
+  if(inputMode==='smartphone'&&e.data){
+    // 濁音(ぶ等)をcomposition経由で入力した場合はここで処理
+    [...e.data].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch))
+      .forEach(ch=>processFlickChar(ch));
+    resetFlickInput();
+  }
+});
 mobileInput.addEventListener('input',e=>{
   if(inputMode==='smartphone'){
+    if(composing)return; // composition中はcompositionendで処理
     AC.resume();
-    // 50ms デバウンス：IMEの中間状態（ふ→ぶ等）を無視して確定文字だけ処理
-    clearTimeout(flickDebounce);
-    flickDebounce=setTimeout(()=>{
-      const val=mobileInput.value;
-      if(val.length>flickLastLen){
-        const newChars=[...val.slice(flickLastLen)].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch));
-        flickLastLen=val.length;
-        newChars.forEach(ch=>processFlickChar(ch));
-      }else{
-        flickLastLen=val.length;
-      }
-    },50);
+    const val=mobileInput.value;
+    if(val.length>flickLastLen){
+      const newChars=[...val.slice(flickLastLen)].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch));
+      flickLastLen=val.length;
+      newChars.forEach(ch=>processFlickChar(ch));
+    }else{flickLastLen=val.length;}
     return;
   }
   if(composing)return;
@@ -1862,7 +1864,7 @@ function processFlickChar(ch){
     }
   }else{
     G.flickTyped='';
-    resetFlickInput(); // ミス時：inputの蓄積もリセット
+    flickLastLen=mobileInput.value.length; // ミス時：現在位置に合わせて再処理しない
     G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
   }
 }
