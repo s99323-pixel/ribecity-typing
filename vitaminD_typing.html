@@ -20,8 +20,29 @@ const cvs=document.getElementById('c');
 const ctx=cvs.getContext('2d');
 const W=720,H=405;
 cvs.width=W;cvs.height=H;
-function resize(){const s=Math.min(window.innerWidth/W,window.innerHeight/H);cvs.style.width=W*s+'px';cvs.style.height=H*s+'px';}
-resize();window.addEventListener('resize',resize);
+function resize(){
+  const vw=window.visualViewport?window.visualViewport.width:window.innerWidth;
+  const vh=window.visualViewport?window.visualViewport.height:window.innerHeight;
+  // スマホモード：キーボード上に完全に収まるようスケール
+  const availH=inputMode==='smartphone'?Math.min(vh,window.innerHeight*0.55):vh;
+  const s=Math.min(vw/W,availH/H);
+  cvs.style.width=W*s+'px';cvs.style.height=H*s+'px';
+  // キャンバスをビューポート上部に固定
+  if(inputMode==='smartphone'){
+    cvs.style.position='fixed';
+    cvs.style.top='0';
+    cvs.style.left='50%';
+    cvs.style.transform='translateX(-50%)';
+  }else{
+    cvs.style.position='';
+    cvs.style.top='';
+    cvs.style.left='';
+    cvs.style.transform='';
+  }
+}
+resize();
+window.addEventListener('resize',resize);
+if(window.visualViewport)window.visualViewport.addEventListener('resize',resize);
 
 // ── AUDIO ──
 const AC=new (window.AudioContext||window.webkitAudioContext)();
@@ -1835,8 +1856,8 @@ cvs.addEventListener('click',e=>{
     const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
     const bw=260,bx=W/2-bw/2;
     const pcY=H/2-28,spY=H/2+44,bh=52;
-    if(mx>=bx&&mx<=bx+bw&&my>=pcY&&my<=pcY+bh){inputMode='pc';G.phase='title';startChip('title');return;}
-    if(mx>=bx&&mx<=bx+bw&&my>=spY&&my<=spY+bh){inputMode='smartphone';G.phase='title';startChip('title');return;}
+    if(mx>=bx&&mx<=bx+bw&&my>=pcY&&my<=pcY+bh){inputMode='pc';resize();G.phase='title';startChip('title');return;}
+    if(mx>=bx&&mx<=bx+bw&&my>=spY&&my<=spY+bh){inputMode='smartphone';resize();G.phase='title';startChip('title');return;}
     return;
   }
   if(G.phase==='title'){
