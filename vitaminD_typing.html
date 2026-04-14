@@ -1777,34 +1777,52 @@ mobileInput.addEventListener('compositionstart',()=>{composing=true;});
 mobileInput.addEventListener('compositionend',e=>{
   composing=false;
   if(inputMode!=='smartphone')return;
-  const val=e.data||mobileInput.value;if(!val)return;
-  AC.resume();
-  // フリック入力：compositionendで確定した文字を追加
-  const word=G.isShohouMode?G.shohouWord:G.currentWord;
-  if(!word||G.phase!=='fight')return;
-  G.flickTyped+=val;
+  const val=e.data||mobileInput.value;
   mobileInput.value='';
-  const target=word.word;
-  if(target.startsWith(G.flickTyped)){
-    if(G.flickTyped===target){
-      // ワードクリア
-      G.typedIndex=target.length;
-      handleKey('__flickcomplete__','__flickcomplete__');
-    }
-    // 正しく入力中→コンボタイマーを維持
-  }else{
-    // ミス
-    G.flickTyped='';G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
-  }
+  if(!val)return;
+  AC.resume();
+  for(const ch of val)processFlickChar(ch);
 });
 mobileInput.addEventListener('input',e=>{
-  if(inputMode==='smartphone'||composing)return;
+  if(inputMode==='smartphone'){
+    if(composing)return; // 変換中はcompositionendに任せる
+    const val=mobileInput.value;
+    mobileInput.value='';
+    if(!val)return;
+    AC.resume();
+    for(const ch of val)processFlickChar(ch);
+    return;
+  }
+  if(composing)return;
   const val=e.data;if(!val)return;
   AC.resume();handleKey(val.toLowerCase(),'Key'+val.toUpperCase());mobileInput.value='';
 });
 mobileInput.addEventListener('keydown',e=>{
   if(e.key==='Backspace'||e.key==='Enter'){e.stopPropagation();AC.resume();handleKey(e.key.toLowerCase(),e.code||e.key);}
 });
+
+function processFlickChar(ch){
+  if(G.phase!=='fight'||G.hitstop>0)return;
+  const word=G.isShohouMode?G.shohouWord:G.currentWord;
+  if(!word)return;
+  const expected=word.word[G.flickTyped.length];
+  if(ch===expected){
+    G.flickTyped+=ch;
+    SFX.correct(G.flickTyped.length-1,word.word.length);
+    const keyDmg=Math.max(1,Math.floor(word.dmg/word.word.length));
+    G.enemyHp=Math.max(0,G.enemyHp-keyDmg);
+    G.enemyHurt=Math.max(G.enemyHurt,5);
+    enemyTypingShake=3;
+    addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
+    if(G.flickTyped===word.word){
+      G.typedIndex=word.word.length;
+      processWordComplete(word);
+    }
+  }else{
+    G.flickTyped='';
+    G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
+  }
+}
 cvs.addEventListener('click',e=>{
   AC.resume();mobileInput.focus();
   if(G.phase==='disclaimer'){
