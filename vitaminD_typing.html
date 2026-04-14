@@ -596,9 +596,10 @@ function startStage(idx){
   const pool=[...db].slice(lo,Math.min(hi+1,db.length)).sort(()=>Math.random()-0.5);
   G.wordQueue=pool.slice(0,st.wordCount).sort((a,b)=>a.word.length-b.word.length);
   G.wordsLeft=G.wordQueue.length;G.flickTyped='';
-  nextWord();G.phase='fight';
+  nextWord();
   G.playerHp=dd.playerHp;G.playerMaxHp=dd.playerHp;G.dispPlayerHp=dd.playerHp;
   stopChip();setBGMPitch(1.0);startBGM();SFX.fight();
+  G.stageIntroTimer=150;G.phase='stageintro';
   if(idx===4)unlockAchievement('stage5');
 }
 
@@ -1611,6 +1612,30 @@ function loop(){
     drawAchievements();drawNonOfficialBadge();
   }
   else if(G.phase==='paused'){drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();drawPause();drawAchievements();drawNonOfficialBadge();}
+  else if(G.phase==='stageintro'){
+    drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawNonOfficialBadge();
+    G.stageIntroTimer--;
+    if(G.stageIntroTimer<=0){G.phase='fight';}
+    else{
+      const t=G.stageIntroTimer;const alpha=t>120?Math.min(1,(150-t)/30):t<40?t/40:1;
+      ctx.save();ctx.globalAlpha=alpha*0.88;
+      ctx.fillStyle='rgba(0,0,20,0.92)';ctx.beginPath();ctx.roundRect(W/2-240,H/2-52,480,104,14);ctx.fill();
+      ctx.strokeStyle='rgba(100,180,255,0.6)';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(W/2-240,H/2-52,480,104,14);ctx.stroke();
+      ctx.globalAlpha=alpha;
+      const isKana=inputMode==='smartphone'&&G.stageIdx===0;
+      const isRoma=inputMode==='smartphone'&&G.stageIdx>0;
+      ctx.fillStyle='#FFD700';ctx.font='bold 15px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+      ctx.fillText(`STAGE ${G.stageIdx+1}`,W/2,H/2-28);
+      ctx.fillStyle='#ffffff';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
+      if(isKana) ctx.fillText('📱 ひらがな入力でタイプ！',W/2,H/2+2);
+      else if(isRoma) ctx.fillText('⌨️ ローマ字入力に切り替わり！',W/2,H/2+2);
+      else ctx.fillText('⌨️ キーボードでタイプ！',W/2,H/2+2);
+      ctx.fillStyle='rgba(160,200,255,0.7)';ctx.font='11px monospace';
+      if(isKana) ctx.fillText('フリックで1文字ずつ入力してね',W/2,H/2+26);
+      else if(isRoma) ctx.fillText('英語をアルファベットで打ってね（例: love → l-o-v-e）',W/2,H/2+26);
+      ctx.restore();
+    }
+  }
   else if(G.phase==='resuming'){
     drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();
     G.resumeCountdown--;
