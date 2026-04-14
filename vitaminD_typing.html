@@ -631,6 +631,7 @@ function nextWord(){
   }
   G.currentWord=G.wordQueue.shift();G.typedIndex=0;G.wrongFlash=0;G.flickTyped='';
   G.wordStartTime=performance.now();G.isShohouMode=false;
+  if(inputMode==='smartphone')resetFlickInput();
 }
 
 function startShohouMode(){
@@ -1773,24 +1774,22 @@ document.addEventListener('keydown',e=>{
 });
 const mobileInput=document.getElementById('mobileInput');
 let composing=false;
+let flickLastLen=0;
+function resetFlickInput(){mobileInput.value='';flickLastLen=0;}
 mobileInput.addEventListener('compositionstart',()=>{composing=true;});
-mobileInput.addEventListener('compositionend',e=>{
-  composing=false;
-  if(inputMode!=='smartphone')return;
-  const val=e.data||mobileInput.value;
-  mobileInput.value='';
-  if(!val)return;
-  AC.resume();
-  for(const ch of val)processFlickChar(ch);
-});
+mobileInput.addEventListener('compositionend',e=>{composing=false;});
 mobileInput.addEventListener('input',e=>{
   if(inputMode==='smartphone'){
-    if(composing)return; // 変換中はcompositionendに任せる
-    const val=mobileInput.value;
-    mobileInput.value='';
-    if(!val)return;
     AC.resume();
-    for(const ch of val)processFlickChar(ch);
+    const val=mobileInput.value;
+    if(val.length>flickLastLen){
+      // 増えた文字をひらがなのみ抽出して即処理
+      const newChars=[...val.slice(flickLastLen)].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch));
+      flickLastLen=val.length;
+      newChars.forEach(ch=>processFlickChar(ch));
+    }else{
+      flickLastLen=val.length;
+    }
     return;
   }
   if(composing)return;
