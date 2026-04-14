@@ -523,7 +523,7 @@ function drawLightning(x1,y1,x2,y2,alpha=1){
 let shohouCount=0;
 let bgScroll=0;
 let G={
-  phase:'title',stageIdx:0,
+  phase:'disclaimer',stageIdx:0,
   playerHp:100,playerMaxHp:100,
   enemyHp:0,enemyMaxHp:0,
   score:0,combo:0,comboTimer:0,comboMax:0,
@@ -879,6 +879,16 @@ function drawEnemy(x,y,state){
     ctx.globalAlpha=1;
   }
 
+  ctx.restore();
+}
+
+// ── 非公式フッター（全画面共通） ──
+function drawNonOfficialBadge(){
+  ctx.save();
+  ctx.fillStyle='rgba(255,215,0,0.13)';ctx.strokeStyle='rgba(255,215,0,0.38)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.roundRect(4,H-16,152,13,3);ctx.fill();ctx.stroke();
+  ctx.fillStyle='rgba(255,215,0,0.65)';ctx.font='7px monospace';ctx.textAlign='left';
+  ctx.fillText('非公式 / Non-official Fan Game',8,H-6);
   ctx.restore();
 }
 
@@ -1247,6 +1257,47 @@ function drawBG(){
   }
 }
 
+// ── 免責・ガイドライン同意画面 ──
+function drawDisclaimer(){
+  // 背景
+  ctx.fillStyle='#000010';ctx.fillRect(0,0,W,H);
+  // 上部バナー
+  ctx.fillStyle='#FFD700';ctx.fillRect(0,0,W,44);
+  ctx.fillStyle='#000';ctx.font='bold 15px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+  ctx.fillText('⚠️  非公式ファンゲーム  ⚠️',W/2,28);
+  // 本文
+  const lines=[
+    {t:'このゲームについて',s:13,c:'#FFD700',b:true,y:76},
+    {t:'本作は リベシティ・リベラルアーツ大学 の',s:11,c:'#ccccff',b:false,y:102},
+    {t:'非公式ファンゲームです。',s:11,c:'#ccccff',b:false,y:118},
+    {t:'リベシティ・両学長とは一切関係ありません。',s:11,c:'#ccccff',b:false,y:134},
+    {t:'ガイドライン準拠',s:13,c:'#FFD700',b:true,y:162},
+    {t:'リベシティ著作物ガイドラインに基づき、',s:11,c:'#ccccff',b:false,y:184},
+    {t:'非営利・個人利用として公開しています。',s:11,c:'#ccccff',b:false,y:200},
+    {t:'© リベラルアーツ大学 の著作物を含みます。',s:10,c:'rgba(180,180,200,0.7)',b:false,y:216},
+  ];
+  lines.forEach(l=>{
+    ctx.font=`${l.b?'bold ':''} ${l.s}px "Hiragino Sans","Yu Gothic",monospace`;
+    ctx.fillStyle=l.c;ctx.textAlign='center';ctx.fillText(l.t,W/2,l.y);
+  });
+  // 区切り線
+  ctx.strokeStyle='rgba(255,215,0,0.3)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(40,148);ctx.lineTo(W-40,148);ctx.stroke();
+  // 同意ボタン
+  const bw=220,bh=38,bx=W/2-bw/2,by=H-76;
+  const pulse=Math.sin(G.frameN*0.1)*0.15+0.85;
+  ctx.shadowBlur=20*pulse;ctx.shadowColor='#FFD700';
+  ctx.fillStyle=`rgba(40,35,0,0.95)`;ctx.strokeStyle='#FFD700';ctx.lineWidth=2;
+  ctx.beginPath();ctx.roundRect(bx,by,bw,bh,10);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle='#FFD700';ctx.font='bold 14px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+  ctx.fillText('同意してゲームをはじめる →',W/2,by+24);
+  // ガイドライン参照URL
+  ctx.fillStyle='rgba(100,180,255,0.75)';ctx.font='9px monospace';ctx.textAlign='center';
+  ctx.fillText('準拠ガイドライン: site.libecity.com/copyright-guidelines',W/2,H-36);
+  // 注釈
+  ctx.fillStyle='rgba(150,150,170,0.6)';ctx.font='9px monospace';ctx.textAlign='center';
+  ctx.fillText('Enter キー または クリックで進む',W/2,H-20);
+}
+
 // ── タイトル画面（格好良くリニューアル）──
 const DIFF_OPTS=['easy','normal','hard'];
 const TITLE_QUOTES=[
@@ -1330,6 +1381,13 @@ function drawTitle(){
   ctx.fillText(`BEST: ${hs.score}pts  MAX COMBO: ${hs.combo}`,W/2,H-38);
   const unlocked=getAchievements();
   ctx.fillStyle='rgba(130,130,165,0.5)';ctx.font='9px monospace';ctx.fillText(`実績: ${unlocked.length}/${ACHIEVEMENTS.length}`,W/2,H-24);
+  // 非公式バッジ（常時表示）
+  ctx.save();
+  ctx.fillStyle='rgba(255,215,0,0.18)';ctx.strokeStyle='rgba(255,215,0,0.55)';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.roundRect(8,8,130,18,4);ctx.fill();ctx.stroke();
+  ctx.fillStyle='rgba(255,215,0,0.85)';ctx.font='bold 9px monospace';ctx.textAlign='left';
+  ctx.fillText('非公式ファンゲーム / Unofficial Fan Game',14,20);
+  ctx.restore();
   // スクロールする名言マーキー
   titleQuoteScroll=(titleQuoteScroll+0.7)%(W+600);
   const qIdx=Math.floor(t/240)%TITLE_QUOTES.length;
@@ -1409,7 +1467,10 @@ function loop(){
   if(Math.abs(zoomScale-1)>0.002){ctx.translate(zoomCX,zoomCY);ctx.scale(zoomScale,zoomScale);ctx.translate(-zoomCX,-zoomCY);}
   if(shakePow>0.3)ctx.translate(Math.round(shakeX),Math.round(shakeY));
 
-  if(G.phase==='title'){
+  if(G.phase==='disclaimer'){
+    drawDisclaimer();
+  }
+  else if(G.phase==='title'){
     drawTitle();drawPts();updatePts();
     if(Math.random()<0.015)coinBurst(Math.random()*W,Math.random()*H*0.5);
   }
@@ -1446,24 +1507,25 @@ function loop(){
     else{ctx.translate(esx,0);drawEnemy(542,222,enemyState);ctx.translate(-esx,0);}
     drawHUD();drawWordPanel();drawShohouEffect();
     if(flashA>0.01){ctx.globalAlpha=flashA;ctx.fillStyle=flashC;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
-    drawAchievements();
+    drawAchievements();drawNonOfficialBadge();
   }
-  else if(G.phase==='paused'){drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();drawPause();drawAchievements();}
+  else if(G.phase==='paused'){drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();drawPause();drawAchievements();drawNonOfficialBadge();}
   else if(G.phase==='resuming'){
     drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();
     G.resumeCountdown--;
     if(G.resumeCountdown<=0)G.phase='fight';else drawResumeCountdown();
+    drawNonOfficialBadge();
   }
   else if(G.phase==='stageclear'){
     drawBG();drawLion(178,222,'win');drawEnemy(542,222,'ko');drawPts();updatePts();drawStageClear();
-    if(Math.random()<0.06)coinBurst(Math.random()*W,Math.random()*H*0.5);drawAchievements();
+    if(Math.random()<0.06)coinBurst(Math.random()*W,Math.random()*H*0.5);drawAchievements();drawNonOfficialBadge();
   }
   else if(G.phase==='gameclear'){
     const bg2=ctx.createLinearGradient(0,0,0,H);bg2.addColorStop(0,'#000010');bg2.addColorStop(1,'#001000');ctx.fillStyle=bg2;ctx.fillRect(0,0,W,H);
     drawLion(W/2,285,'win');drawPts();updatePts();drawGameClear();
-    if(Math.random()<0.08)coinBurst(Math.random()*W,Math.random()*H*0.6);drawAchievements();
+    if(Math.random()<0.08)coinBurst(Math.random()*W,Math.random()*H*0.6);drawAchievements();drawNonOfficialBadge();
   }
-  else if(G.phase==='gameover'){drawBG();drawPts();updatePts();drawGameOver();drawAchievements();}
+  else if(G.phase==='gameover'){drawBG();drawPts();updatePts();drawGameOver();drawAchievements();drawNonOfficialBadge();}
 
   ctx.restore();
   requestAnimationFrame(loop);
@@ -1478,6 +1540,7 @@ function handleKey(key,code){
     return;
   }
   if(code==='Enter'){
+    if(G.phase==='disclaimer'){G.phase='title';startChip('title');return;}
     if(G.phase==='title'){stopChip();shohouPriorityIdx=0;shohouCount=0;startStage(0);}
     else if(G.phase==='stageclear'){
       if(G.stageIdx<STAGES.length-1)startStage(G.stageIdx+1);
@@ -1593,6 +1656,7 @@ mobileInput.addEventListener('keydown',e=>{
 });
 cvs.addEventListener('click',e=>{
   AC.resume();mobileInput.focus();
+  if(G.phase==='disclaimer'){G.phase='title';startChip('title');return;}
   if(G.phase==='title'){
     const rect=cvs.getBoundingClientRect();const scaleX=W/rect.width,scaleY=H/rect.height;
     const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
