@@ -312,86 +312,33 @@ const WORD_DB=[
   {word:'fire_path_2025',jp:'2025年FIRE達成計画！',dmg:110},
 ];
 
-// ── スマホ用ワードDB（学長名言メイン・ひらがな入力）──
+// ── スマホ1面専用ワードDB（濁音なし・小文字なし・2〜5文字）──
 const WORD_DB_KANA=[
-  // 初級 idx 0-19（2〜5文字）
   {word:'おかね',jp:'💰 お金',dmg:10},
-  {word:'じゆう',jp:'🔓 自由',dmg:10},
-  {word:'かぶ',jp:'📈 株式',dmg:12},
-  {word:'ほん',jp:'📚 本を読む',dmg:10},
-  {word:'きん',jp:'🥇 金',dmg:11},
+  {word:'ゆめ',jp:'🌟 夢',dmg:8},
+  {word:'ほん',jp:'📚 本',dmg:8},
+  {word:'きん',jp:'🥇 金',dmg:9},
+  {word:'にさ',jp:'🏦 NISA',dmg:9},
+  {word:'ちから',jp:'💪 力',dmg:10},
+  {word:'みらい',jp:'🌈 未来',dmg:10},
+  {word:'なかま',jp:'🤝 仲間',dmg:10},
+  {word:'こころ',jp:'💖 心',dmg:10},
+  {word:'まもる',jp:'🛡️ 守る',dmg:11},
+  {word:'すすむ',jp:'➡️ 進む',dmg:11},
+  {word:'ふえる',jp:'📈 増える',dmg:11},
+  {word:'いきる',jp:'✨ 生きる',dmg:11},
+  {word:'つよい',jp:'💪 強い',dmg:11},
+  {word:'しんし',jp:'🎩 紳士',dmg:11},
+  {word:'ふくり',jp:'🔄 複利',dmg:12},
   {word:'らいおん',jp:'🦁 学長',dmg:12},
-  {word:'ちょきん',jp:'💴 貯金',dmg:12},
-  {word:'がくちょう',jp:'🦁 両学長',dmg:14},
   {word:'とうし',jp:'📊 投資',dmg:12},
   {word:'けんやく',jp:'✂️ 倹約',dmg:13},
-  {word:'まなぶ',jp:'📖 学ぶ',dmg:11},
-  {word:'かせぐ',jp:'💹 稼ぐ',dmg:11},
-  {word:'ゆめ',jp:'🌟 夢',dmg:10},
-  {word:'ちから',jp:'💪 力',dmg:10},
-  {word:'こうどう',jp:'🚀 行動',dmg:13},
-  {word:'しんし',jp:'🎩 紳士',dmg:11},
-  {word:'じことうし',jp:'📈 自己投資',dmg:15},
   {word:'しほんか',jp:'🏭 資本家',dmg:14},
-  {word:'ふくり',jp:'🔄 複利',dmg:13},
-  {word:'にさ',jp:'🏦 NISA',dmg:12},
-  // 中級 idx 20-44（5〜9文字）
-  {word:'ふくぎょう',jp:'💼 副業',dmg:18},
-  {word:'りべしてぃ',jp:'🏙️ リベシティ',dmg:20},
-  {word:'しさんけいせい',jp:'🏗️ 資産形成',dmg:22},
-  {word:'ながきかんとうし',jp:'⏳ 長期間投資',dmg:24},
-  {word:'しょうりゅうけん',jp:'⚡ 商流拳！！',dmg:28},
-  {word:'おかねもち',jp:'💎 お金持ち',dmg:20},
-  {word:'けいざいてきじゆう',jp:'🔓 経済的自由',dmg:30},
-  {word:'ぜいきんたいさく',jp:'🧾 節税対策',dmg:25},
-  {word:'じゆうなじんせい',jp:'🌈 自由な人生',dmg:26},
-  {word:'まえにすすめ',jp:'➡️ 前に進め',dmg:22},
-  {word:'なかまをたいせつに',jp:'🤝 仲間を大切に',dmg:28},
-  {word:'おかねのちしき',jp:'📚 お金の知識',dmg:24},
-  {word:'しゃっきんきんし',jp:'🚫 借金禁止',dmg:25},
-  {word:'ふくりのまほう',jp:'✨ 複利の魔法',dmg:26},
-  {word:'こうどうあるのみ',jp:'🔥 行動あるのみ',dmg:27},
-  {word:'じぶんをしんじろ',jp:'💪 自分を信じろ',dmg:26},
-  {word:'りべだいにまなべ',jp:'🎓 リベ大に学べ',dmg:25},
-  {word:'しほんかのどうぐ',jp:'🔧 資本家の道具',dmg:26},
-  {word:'おかねはしゅだん',jp:'🧭 お金は手段',dmg:24},
-  {word:'いきがいをさがせ',jp:'🌸 生き甲斐を探せ',dmg:27},
-  {word:'ゆめをあきらめるな',jp:'⭐ 夢を諦めるな',dmg:28},
-  {word:'まいにちがくしゅう',jp:'📖 毎日学習',dmg:26},
-  {word:'しあわせにいきろ',jp:'😊 幸せに生きろ',dmg:25},
-  {word:'じゆうをてにいれろ',jp:'✊ 自由を手に入れろ',dmg:30},
-  {word:'おかねのべんきょう',jp:'💡 お金の勉強',dmg:26},
-  // 上級 idx 45-74（学長名言・10文字以上）
-  {word:'きょうがじんせいでいちばんわかいひ',jp:'🔥 今日が人生で一番若い日！',dmg:60},
-  {word:'しゃっきんなんかすんじゃねえ',jp:'😤 借金なんかすんじゃねえ！',dmg:50},
-  {word:'こうどうなくしてじゆうなし',jp:'🚀 行動なくして自由なし！',dmg:48},
-  {word:'ふくりはじんるいさいだいのはつめい',jp:'♾️ 複利は人類最大の発明',dmg:65},
-  {word:'おかねのべんきょうをはじめよう',jp:'📚 お金の勉強を始めよう',dmg:55},
-  {word:'ふくぎょうでじゆうをつかめ',jp:'💼 副業で自由を掴め',dmg:50},
-  {word:'じゆうなせいかつをてにいれる',jp:'🌈 自由な生活を手に入れる',dmg:55},
-  {word:'こがねやまをいっしょにのぼろうな',jp:'🏔️ 小金持ち山一緒に登ろうな',dmg:58},
-  {word:'いまがじんせいでいちばんわかい',jp:'⏰ 今が人生で一番若い',dmg:55},
-  {word:'おかねはしゅだんでありもくてきじゃない',jp:'🧭 お金は手段であり目的じゃない',dmg:68},
-  {word:'じことうしがさいこうのとうし',jp:'💎 自己投資が最高の投資',dmg:55},
-  {word:'まなびつづけるものがかつ',jp:'🎓 学び続ける者が勝つ',dmg:50},
-  {word:'ゆうきあるこうどうをとれ',jp:'💪 勇気ある行動を取れ',dmg:48},
-  {word:'しほんかのじんせいをいきろ',jp:'👑 資本家の人生を生きろ',dmg:52},
-  {word:'かちのあるじんせいをおくれ',jp:'🌟 価値ある人生を送れ',dmg:52},
-  {word:'けいぞくはちからなり',jp:'🏃 継続は力なり！',dmg:42},
-  {word:'あきらめなければゆめはかなう',jp:'⭐ 諦めなければ夢は叶う',dmg:55},
-  {word:'しっかりはたらきしっかりたのしめ',jp:'😄 しっかり働きしっかり楽しめ',dmg:60},
-  {word:'ひとにやさしくじぶんにきびしく',jp:'🤝 人に優しく自分に厳しく',dmg:62},
-  {word:'おかねもちになってしあわせになれ',jp:'💰 お金持ちになって幸せになれ',dmg:65},
-  {word:'まいにちすこしずつまえにすすめ',jp:'🐢 毎日少しずつ前に進め',dmg:58},
-  {word:'りべしてぃでけいざいてきじゆうへ',jp:'🏙️ リベシティで経済的自由へ',dmg:62},
-  {word:'はやくはじめるほどふくりがふえる',jp:'⏳ 早く始めるほど複利が増える',dmg:65},
-  {word:'ふくぎょうでしゅうにゅうのはしらをつくれ',jp:'🏗️ 副業で収入の柱を作れ',dmg:70},
-  {word:'しっかりはなしてしっかりきいて',jp:'👂 しっかり話してしっかり聴いて',dmg:60},
-  {word:'おすはやれや',jp:'🔥 オスはやれや！',dmg:35},
-  {word:'つれか',jp:'👥 つれか！',dmg:20},
-  {word:'じょしのみなさんはぐ',jp:'🤗 女子の皆さんハグ！',dmg:40},
-  {word:'ひとにあいや',jp:'🤝 人に会いや！',dmg:30},
-  {word:'くろーどこーどつかえや',jp:'💻 クロードコード使えや！',dmg:45},
+  {word:'まいにち',jp:'📅 毎日',dmg:13},
+  {word:'さいこう',jp:'🏆 最高',dmg:13},
+  {word:'はたらく',jp:'⚒️ 働く',dmg:14},
+  {word:'かなえる',jp:'⭐ 叶える',dmg:14},
+  {word:'のりこえる',jp:'💥 乗り越える',dmg:16},
 ];
 
 // ── 商流拳ワード（学長名言・優先順序付き）──
@@ -645,7 +592,7 @@ function startStage(idx){
   G.superGauge=0;G.superActive=0;G.superFlash=0;G.isShohouMode=false;G.shohouWord=null;
   G.wpmHistory=[];G.currentWpm=0;G.stageNoDamage=true;G.shohouUsed=false;
   const [lo,hi]=st.wordLevel;
-  const db=inputMode==='smartphone'?WORD_DB_KANA:WORD_DB;
+  const db=(inputMode==='smartphone'&&idx===0)?WORD_DB_KANA:WORD_DB;
   const pool=[...db].slice(lo,Math.min(hi+1,db.length)).sort(()=>Math.random()-0.5);
   G.wordQueue=pool.slice(0,st.wordCount).sort((a,b)=>a.word.length-b.word.length);
   G.wordsLeft=G.wordQueue.length;G.flickTyped='';
@@ -658,13 +605,13 @@ function startStage(idx){
 function nextWord(){
   if(G.wordQueue.length===0){
     const st=STAGES[G.stageIdx];const [lo,hi]=st.wordLevel;
-    const db=inputMode==='smartphone'?WORD_DB_KANA:WORD_DB;
+    const db=(inputMode==='smartphone'&&G.stageIdx===0)?WORD_DB_KANA:WORD_DB;
     const pool=[...db].slice(lo,Math.min(hi+1,db.length)).sort(()=>Math.random()-0.5);
     G.wordQueue=pool.slice(0,Math.min(6,pool.length));
   }
   G.currentWord=G.wordQueue.shift();G.typedIndex=0;G.wrongFlash=0;G.flickTyped='';
   G.wordStartTime=performance.now();G.isShohouMode=false;
-  if(inputMode==='smartphone')resetFlickInput();
+  if(inputMode==='smartphone'&&G.stageIdx===0)resetFlickInput();
 }
 
 function startShohouMode(){
@@ -1812,7 +1759,8 @@ function resetFlickInput(){mobileInput.value='';flickLastLen=0;}
 mobileInput.addEventListener('compositionstart',()=>{composing=true;});
 mobileInput.addEventListener('compositionend',e=>{composing=false;});
 mobileInput.addEventListener('input',e=>{
-  if(inputMode==='smartphone'){
+  if(inputMode==='smartphone'&&G.stageIdx===0){
+    // 1面：ひらがなフリック入力
     AC.resume();
     const val=mobileInput.value;
     if(val.length>flickLastLen){
@@ -1822,6 +1770,7 @@ mobileInput.addEventListener('input',e=>{
     }else{flickLastLen=val.length;}
     return;
   }
+  // 2面以降：ローマ字入力（PCと同じ）
   if(composing)return;
   const val=e.data;if(!val)return;
   AC.resume();handleKey(val.toLowerCase(),'Key'+val.toUpperCase());mobileInput.value='';
