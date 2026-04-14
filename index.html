@@ -1814,21 +1814,25 @@ document.addEventListener('keydown',e=>{
 const mobileInput=document.getElementById('mobileInput');
 let composing=false;
 let flickLastLen=0;
-function resetFlickInput(){mobileInput.value='';flickLastLen=0;}
+let flickDebounce=null;
+function resetFlickInput(){mobileInput.value='';flickLastLen=0;clearTimeout(flickDebounce);flickDebounce=null;}
 mobileInput.addEventListener('compositionstart',()=>{composing=true;});
 mobileInput.addEventListener('compositionend',e=>{composing=false;});
 mobileInput.addEventListener('input',e=>{
   if(inputMode==='smartphone'){
     AC.resume();
-    const val=mobileInput.value;
-    if(val.length>flickLastLen){
-      // 増えた文字をひらがなのみ抽出して即処理
-      const newChars=[...val.slice(flickLastLen)].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch));
-      flickLastLen=val.length;
-      newChars.forEach(ch=>processFlickChar(ch));
-    }else{
-      flickLastLen=val.length;
-    }
+    // 50ms デバウンス：IMEの中間状態（ふ→ぶ等）を無視して確定文字だけ処理
+    clearTimeout(flickDebounce);
+    flickDebounce=setTimeout(()=>{
+      const val=mobileInput.value;
+      if(val.length>flickLastLen){
+        const newChars=[...val.slice(flickLastLen)].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch));
+        flickLastLen=val.length;
+        newChars.forEach(ch=>processFlickChar(ch));
+      }else{
+        flickLastLen=val.length;
+      }
+    },50);
     return;
   }
   if(composing)return;
@@ -1858,6 +1862,7 @@ function processFlickChar(ch){
     }
   }else{
     G.flickTyped='';
+    resetFlickInput(); // ミス時：inputの蓄積もリセット
     G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
   }
 }
