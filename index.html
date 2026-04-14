@@ -15,12 +15,6 @@ canvas{display:block;touch-action:none;}
 <input id="mobileInput" type="text" autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-form-type="other">
 <div id="hint">キーボードで文字を入力 | Enter: スタート / スマホ: タップ</div>
 <script>
-window.onerror=function(msg,src,line){
-  const d=document.createElement('div');
-  d.style.cssText='position:fixed;top:0;left:0;width:100%;background:#cc0000;color:#fff;padding:12px;font-size:13px;z-index:9999;word-break:break-all;';
-  d.textContent='ERROR: '+msg+' (line '+line+')';
-  document.body.appendChild(d);
-};
 'use strict';
 const cvs=document.getElementById('c');
 const ctx=cvs.getContext('2d');
@@ -1816,18 +1810,9 @@ let composing=false;
 let flickLastLen=0;
 function resetFlickInput(){mobileInput.value='';flickLastLen=0;}
 mobileInput.addEventListener('compositionstart',()=>{composing=true;});
-mobileInput.addEventListener('compositionend',e=>{
-  composing=false;
-  if(inputMode==='smartphone'&&e.data){
-    // 濁音(ぶ等)をcomposition経由で入力した場合はここで処理
-    [...e.data].filter(ch=>/[\u3041-\u3096\u30A1-\u30F6ー]/.test(ch))
-      .forEach(ch=>processFlickChar(ch));
-    resetFlickInput();
-  }
-});
+mobileInput.addEventListener('compositionend',e=>{composing=false;});
 mobileInput.addEventListener('input',e=>{
   if(inputMode==='smartphone'){
-    if(composing)return; // composition中はcompositionendで処理
     AC.resume();
     const val=mobileInput.value;
     if(val.length>flickLastLen){
@@ -1864,7 +1849,6 @@ function processFlickChar(ch){
     }
   }else{
     G.flickTyped='';
-    flickLastLen=mobileInput.value.length; // ミス時：現在位置に合わせて再処理しない
     G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
   }
 }
