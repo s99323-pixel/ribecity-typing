@@ -82,53 +82,17 @@ function startBGM(){stopBGM();bgmAudio=new Audio('Escort.mp3');bgmAudio.loop=tru
 function stopBGM(){bgmPlaying=false;if(bgmAudio){bgmAudio.pause();bgmAudio.currentTime=0;bgmAudio=null;}}
 function setBGMPitch(r){bgmPitchRate=r;if(bgmAudio)bgmAudio.playbackRate=r;}
 
-// ── チップチューン BGM（タイトル/クリア/ゲームオーバー）──
-let chipTimer=null;const chipNodes=[];
-function stopChip(){clearTimeout(chipTimer);chipTimer=null;chipNodes.forEach(n=>{try{n.stop();}catch(e){}});chipNodes.length=0;}
-function chipNote(freq,start,dur,type='square',vol=0.16){
-  if(freq<=0)return;
-  const o=AC.createOscillator(),g=AC.createGain();
-  o.connect(g);g.connect(sfxGain);o.type=type;o.frequency.value=freq;
-  const t=AC.currentTime+start;
-  g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(vol,t+0.005);
-  g.gain.linearRampToValueAtTime(vol*0.6,t+dur*0.7);
-  g.gain.linearRampToValueAtTime(0,t+dur);
-  o.start(t);o.stop(t+dur+0.02);chipNodes.push(o);
-}
+// ── BGM（タイトル/クリア/ゲームオーバー）MP3版 ──
+let chipAudio=null;
+function stopChip(){if(chipAudio){chipAudio.pause();chipAudio.currentTime=0;chipAudio=null;}}
 function startChip(type){
-  stopChip();AC.resume();
-  if(type==='title'){
-    // 明るい冒険風ループ
-    const M=[523,659,784,1047,784,659,523,392,440,554,659,880,659,554,440,330,523,659,784,1047,1319,1047,784,523,392,494,587,784,587,494,392,294];
-    const b=60/165;
-    const loop=()=>{
-      M.forEach((f,i)=>{
-        chipNote(f,i*b,b*0.82,'square',0.14);
-        if(i%4===0)chipNote(f/2,i*b,b*1.5,'triangle',0.09);
-        if(i%8===0)chipNote(f/4,i*b,b*2,'triangle',0.07);
-      });
-      chipTimer=setTimeout(loop,(M.length*b)*1000+30);
-    };loop();
-  }else if(type==='clear'){
-    // 勝利ファンファーレ（ループ）
-    const M=[523,659,784,1047,784,1047,1319,1047,1319,1568,1319,1047,784,1047,1319,1047,784,659,523];
-    const b=0.13;
-    const loop=()=>{
-      M.forEach((f,i)=>chipNote(f,i*b,b*0.88,'square',0.18));
-      [523,659,784].forEach(f=>chipNote(f,M.length*b,0.5,'square',0.14));
-      chipTimer=setTimeout(loop,(M.length*b+0.7)*1000+30);
-    };loop();
-  }else if(type==='gameover'){
-    // 哀愁のゲームオーバー（ループ）
-    const M=[784,740,698,659,622,587,554,523,494,466,440,415,392,349,330,294,261,220,196];
-    const b=0.19;
-    const bass=[196,185,174,165,156,147,138,130,123,116,110,104,98,92,87,82,77,73,65];
-    const loop=()=>{
-      M.forEach((f,i)=>chipNote(f,i*b,b*1.05,'square',0.17));
-      bass.forEach((f,i)=>chipNote(f,i*b,b*1.5,'triangle',0.11));
-      chipTimer=setTimeout(loop,(M.length*b+0.5)*1000+30);
-    };loop();
-  }
+  stopChip();
+  const files={title:'強い者との戦い.mp3',clear:'ゲームクリアー！.mp3',gameover:'悲壮.mp3'};
+  const file=files[type];if(!file)return;
+  chipAudio=new Audio(file);
+  chipAudio.loop=(type!=='gameover');
+  chipAudio.volume=type==='gameover'?0.5:0.48;
+  chipAudio.play().catch(e=>console.warn('chipBGM:',e));
 }
 
 // ── ハイスコア ──
@@ -1544,8 +1508,8 @@ function handleKey(key,code){
     if(G.phase==='disclaimer'){G.phase='title';startChip('title');return;}
     if(G.phase==='title'){stopChip();shohouPriorityIdx=0;shohouCount=0;startStage(0);}
     else if(G.phase==='stageclear'){
-      if(G.stageIdx<STAGES.length-1)startStage(G.stageIdx+1);
-      else{G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);unlockAchievement('allclear');setTimeout(()=>startChip('clear'),800);}
+      if(G.stageIdx<STAGES.length-1){stopChip();startStage(G.stageIdx+1);}
+      else{stopChip();G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);unlockAchievement('allclear');setTimeout(()=>startChip('clear'),800);}
     }
     else if(G.phase==='gameclear'||G.phase==='gameover'){stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.phase='title';startChip('title');}
     return;
@@ -1635,7 +1599,7 @@ function handleKey(key,code){
         if(G.stageNoDamage)unlockAchievement('nodamage');
         for(let i=0;i<24;i++)setTimeout(()=>coinBurst(Math.random()*W,Math.random()*H*0.5),i*75);
         setBGMPitch(1.0);stopBGM();
-        setTimeout(()=>{G.phase='stageclear';SFX.stageClear();},1300);
+        setTimeout(()=>{G.phase='stageclear';SFX.stageClear();startChip('clear');},1300);
       }else{nextWord();}
     }
   }else{
