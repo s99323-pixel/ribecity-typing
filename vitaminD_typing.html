@@ -1268,13 +1268,14 @@ function drawDisclaimer(){
   // 本文
   const lines=[
     {t:'このゲームについて',s:13,c:'#FFD700',b:true,y:76},
-    {t:'本作は リベシティ・リベラルアーツ大学 の',s:11,c:'#ccccff',b:false,y:102},
-    {t:'非公式ファンゲームです。',s:11,c:'#ccccff',b:false,y:118},
-    {t:'リベシティ・両学長とは一切関係ありません。',s:11,c:'#ccccff',b:false,y:134},
-    {t:'ガイドライン準拠',s:13,c:'#FFD700',b:true,y:162},
-    {t:'リベシティ著作物ガイドラインに基づき、',s:11,c:'#ccccff',b:false,y:184},
-    {t:'非営利・個人利用として公開しています。',s:11,c:'#ccccff',b:false,y:200},
-    {t:'© リベラルアーツ大学 の著作物を含みます。',s:10,c:'rgba(180,180,200,0.7)',b:false,y:216},
+    {t:'本作はリベシティ・両学長を題材にした',s:11,c:'#ccccff',b:false,y:100},
+    {t:'二次創作による非公式ファンゲームです。',s:11,c:'#ffee88',b:true,y:116},
+    {t:'リベシティ運営・両学長による公式作品では',s:11,c:'#ccccff',b:false,y:134},
+    {t:'ありません。公認・監修もされていません。',s:11,c:'#ccccff',b:false,y:150},
+    {t:'ガイドライン準拠',s:13,c:'#FFD700',b:true,y:174},
+    {t:'リベシティ著作物ガイドラインに基づき、',s:11,c:'#ccccff',b:false,y:193},
+    {t:'非営利・無料で公開しています。',s:11,c:'#ccccff',b:false,y:208},
+    {t:'© リベラルアーツ大学 の著作物を含みます。',s:10,c:'rgba(180,180,200,0.7)',b:false,y:222},
   ];
   lines.forEach(l=>{
     ctx.font=`${l.b?'bold ':''} ${l.s}px "Hiragino Sans","Yu Gothic",monospace`;
