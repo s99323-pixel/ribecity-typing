@@ -82,6 +82,20 @@ function startBGM(){stopBGM();bgmAudio=new Audio('Escort.mp3');bgmAudio.loop=tru
 function stopBGM(){bgmPlaying=false;if(bgmAudio){bgmAudio.pause();bgmAudio.currentTime=0;bgmAudio=null;}}
 function setBGMPitch(r){bgmPitchRate=r;if(bgmAudio)bgmAudio.playbackRate=r;}
 
+let shohouBGM=null;
+function startShohouBGM(){
+  // Escortを一時停止（currentTimeは保持）
+  if(bgmAudio){bgmAudio.pause();}
+  shohouBGM=new Audio('Thunderbolt.mp3');
+  shohouBGM.loop=true;shohouBGM.volume=0.62;
+  shohouBGM.play().catch(e=>console.warn('shohouBGM:',e));
+}
+function stopShohouBGM(){
+  if(shohouBGM){shohouBGM.pause();shohouBGM.currentTime=0;shohouBGM=null;}
+  // Escortを再開
+  if(bgmAudio){bgmAudio.play().catch(e=>console.warn('BGM resume:',e));}
+}
+
 // ── BGM（タイトル/クリア/ゲームオーバー）MP3版 ──
 let chipAudio=null;
 function stopChip(){if(chipAudio){chipAudio.pause();chipAudio.currentTime=0;chipAudio=null;}}
@@ -1521,7 +1535,7 @@ function handleKey(key,code){
   }
   if(code==='Space'&&G.phase==='fight'&&!G.isShohouMode){
     if(G.superGauge>=100){
-      startShohouMode();shohouTimer=200;SFX.shohou();flash('#ff6600',0.85);shake(16);
+      startShohouMode();shohouTimer=200;SFX.shohou();flash('#ff6600',0.85);shake(16);startShohouBGM();
       unlockAchievement('shohou_used');
       shohouCount++;
       if(shohouCount>=3)unlockAchievement('shohou3');
@@ -1562,6 +1576,7 @@ function handleKey(key,code){
         // 商流拳：残りHPの大部分をどかっと削る
         dmg=Math.max(Math.floor(G.enemyMaxHp*0.62),G.enemyHp-1);
         G.isShohouMode=false;G.shohouWord=null;G.superGauge=0;G.superActive=0;
+        stopShohouBGM();
         zoomTargetScale=1.65;zoomCX=540;zoomCY=200;setTimeout(()=>zoomTargetScale=1.0,1600);
         shake(34);flash('#ff8800',1.0);
         superBurst(540,200);
@@ -1594,6 +1609,7 @@ function handleKey(key,code){
       if(prevGauge<100&&G.superGauge>=100)SFX.gaugeFull();
       if(G.enemyHp<=0){
         G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
+        stopShohouBGM();
         SFX.ko();shake(22);flash('#FFD700',0.92);G.enemyKoTimer=90;
         unlockAchievement('first_kill');
         if(G.stageNoDamage)unlockAchievement('nodamage');
