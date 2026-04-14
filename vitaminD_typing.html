@@ -1637,7 +1637,13 @@ mobileInput.addEventListener('keydown',e=>{
 });
 cvs.addEventListener('click',e=>{
   AC.resume();mobileInput.focus();
-  if(G.phase==='disclaimer'){G.phase='title';startChip('title');return;}
+  if(G.phase==='disclaimer'){
+    // iOS対策：ユーザー操作のタイミングで全音源を一度解放
+    ['強い者との戦い.mp3','ゲームクリアー！.mp3','悲壮.mp3','Escort.mp3','Thunderbolt.mp3'].forEach(f=>{
+      const a=new Audio(f);a.volume=0;a.play().then(()=>a.pause()).catch(()=>{});
+    });
+    G.phase='title';startChip('title');return;
+  }
   if(G.phase==='title'){
     const rect=cvs.getBoundingClientRect();const scaleX=W/rect.width,scaleY=H/rect.height;
     const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
