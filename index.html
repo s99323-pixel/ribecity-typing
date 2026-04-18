@@ -61,7 +61,7 @@ if(window.visualViewport)window.visualViewport.addEventListener('resize',resize)
 const AC=new (window.AudioContext||window.webkitAudioContext)();
 const masterGain=AC.createGain();masterGain.gain.value=0.9;masterGain.connect(AC.destination);
 const sfxGain=AC.createGain();sfxGain.gain.value=0.7;sfxGain.connect(masterGain);
-const bgmGain=AC.createGain();bgmGain.gain.value=0.5;bgmGain.connect(masterGain);
+const bgmGain=AC.createGain();bgmGain.gain.value=0.25;bgmGain.connect(masterGain);
 let bgmAudio=null,bgmPlaying=false,bgmPitchRate=1.0;
 
 function osc(f,d,type='sine',v=0.3,delay=0,sweep=null,dest=sfxGain){
@@ -112,7 +112,7 @@ const SFX={
   combo10:()=>{[880,1100,1320].forEach((f,i)=>{osc(f,0.15,'sine',0.32,i*0.05);});},
 };
 
-function startBGM(){stopBGM();bgmAudio=new Audio('Escort.mp3');bgmAudio.loop=true;bgmAudio.volume=0.45;bgmPlaying=true;bgmAudio.play().catch(e=>console.warn('BGM:',e));}
+function startBGM(){stopBGM();bgmAudio=new Audio('Escort.mp3');bgmAudio.loop=true;bgmAudio.volume=0.22;bgmPlaying=true;bgmAudio.play().catch(e=>console.warn('BGM:',e));}
 function stopBGM(){bgmPlaying=false;if(bgmAudio){bgmAudio.pause();bgmAudio.currentTime=0;bgmAudio=null;}}
 function setBGMPitch(r){bgmPitchRate=r;if(bgmAudio)bgmAudio.playbackRate=r;}
 
@@ -121,7 +121,7 @@ function startShohouBGM(){
   // Escortを一時停止（currentTimeは保持）
   if(bgmAudio){bgmAudio.pause();}
   shohouBGM=new Audio('Thunderbolt.mp3');
-  shohouBGM.loop=true;shohouBGM.volume=0.62;
+  shohouBGM.loop=true;shohouBGM.volume=0.31;
   shohouBGM.play().catch(e=>console.warn('shohouBGM:',e));
 }
 function stopShohouBGM(){
@@ -139,7 +139,7 @@ function startChip(type){
   const file=files[type];if(!file)return;
   chipAudio=new Audio(file);
   chipAudio.loop=(type!=='gameover');
-  chipAudio.volume=type==='gameover'?0.5:0.48;
+  chipAudio.volume=type==='gameover'?0.25:0.24;
   chipAudio.play().catch(e=>console.warn('chipBGM:',e));
 }
 
@@ -341,25 +341,14 @@ const WORD_DB_KANA=[
   {word:'のりこえる',jp:'💥 乗り越える',dmg:16},
 ];
 
-// ── 商流拳ワード（学長名言・優先順序付き）──
-let shohouPriorityIdx=0;
+// ── 商流拳ワード（固定5ワード・順番通り繰り返し）──
+let shohouWordIdx=0;
 const SHOHOU_WORDS=[
-  // priority=trueは最初の商流拳で必ず出る
-  {word:'kyougajinseideichibanwakaihi',jp:'今日が人生で一番若い日！',dmg:95,priority:true},
-  {word:'shakkinnankasunjane',jp:'借金なんかすんじゃねえ！',dmg:90,priority:true},
-  {word:'jiyuunaseikatsu',jp:'自由な生活を手に入れる',dmg:90},
-  {word:'okanenobenkyou',jp:'お金の勉強をしよう',dmg:75},
-  {word:'fukugyoudejiyu',jp:'副業で自由を掴め',dmg:85},
-  {word:'koudounakunai',jp:'行動なくして自由なし',dmg:88},
-  {word:'fukurinomahou',jp:'複利の魔法を信じろ',dmg:85},
-  {word:'ribecitynikoi',jp:'リベシティに来い！',dmg:80},
-  {word:'okanehashudan',jp:'お金は手段であり目的じゃない',dmg:92},
-  {word:'koganeyamaisshoninoborouna',jp:'🏔️ 小金持ち山一緒に登ろうな！',dmg:90},
-  {word:'claudecodetsukaiya',jp:'💻 クロードコード使えや！',dmg:88},
-  {word:'hitoniaiya',jp:'🤝 人に会いや！',dmg:78},
-  {word:'osuhayareya',jp:'🔥 オスはやれや！',dmg:82},
-  {word:'tsureka',jp:'👥 つれか！',dmg:70},
-  {word:'joshinominasanhagu',jp:'🤗 女子の皆さんハグ！',dmg:84},
+  {word:'hokenhairimasho',             jp:'保険に入りましょー',              dmg:80},
+  {word:'shukudairisutoyareya',         jp:'📋 宿題リストやれや！',           dmg:82},
+  {word:'osuhayareya',                  jp:'🔥 オスはやれや！',               dmg:82},
+  {word:'hitoniaiya',                   jp:'🤝 人に会いや！',                 dmg:78},
+  {word:'kyougajinseideichibanwakaihi', jp:'今日が人生で一番若い日！',         dmg:95},
 ];
 
 // ── 難易度 ──
@@ -575,7 +564,7 @@ let G={
   hitstop:0,playerHurt:0,enemyHurt:0,playerAtk:0,enemyKoTimer:0,
   dispPlayerHp:100,dispEnemyHp:0,frameN:0,
   superGauge:0,superActive:0,superFlash:0,
-  isShohouMode:false,shohouWord:null,
+  isShohouMode:false,shohouWord:null,shohouIntroTimer:0,
   wordStartTime:0,wpmHistory:[],currentWpm:0,
   prevPhase:'fight',resumeCountdown:0,
   stageNoDamage:true,shohouUsed:false,
@@ -589,7 +578,7 @@ function startStage(idx){
   G.stageIdx=idx;G.enemyHp=st.enemyHp;G.enemyMaxHp=st.enemyHp;G.dispEnemyHp=st.enemyHp;
   G.atkTimer=st.atkInterval;G.combo=0;G.comboTimer=0;G.comboMax=0;
   G.wrongFlash=0;G.hitstop=0;G.playerHurt=0;G.enemyHurt=0;G.playerAtk=0;
-  G.superGauge=0;G.superActive=0;G.superFlash=0;G.isShohouMode=false;G.shohouWord=null;
+  G.superGauge=0;G.superActive=0;G.superFlash=0;G.isShohouMode=false;G.shohouWord=null;G.shohouIntroTimer=0;
   G.wpmHistory=[];G.currentWpm=0;G.stageNoDamage=true;G.shohouUsed=false;
   const [lo,hi]=st.wordLevel;
   const db=(inputMode==='smartphone'&&idx===0)?WORD_DB_KANA:WORD_DB;
@@ -617,14 +606,8 @@ function nextWord(){
 
 function startShohouMode(){
   if(G.superGauge<100||G.superActive>0)return;
-  const priorities=SHOHOU_WORDS.filter(w=>w.priority);
-  let sw;
-  if(shohouPriorityIdx<priorities.length){
-    sw=priorities[shohouPriorityIdx++];
-  }else{
-    const rest=SHOHOU_WORDS.filter(w=>!w.priority);
-    sw=rest[Math.floor(Math.random()*rest.length)];
-  }
+  const sw=SHOHOU_WORDS[shohouWordIdx%SHOHOU_WORDS.length];
+  shohouWordIdx++;
   G.isShohouMode=true;G.shohouWord=sw;G.typedIndex=0;G.superActive=1;
 }
 
@@ -1087,6 +1070,29 @@ function drawWordPanel(){
     ctx.fillStyle='rgba(100,100,145,0.55)';ctx.font='11px monospace';ctx.textAlign='center';
     ctx.fillText('NEXT: '+nextW.word,W/2,py+ph+16);
   }
+}
+
+// ── 商流拳イントロテロップ ──
+function drawShohouIntro(){
+  if(G.shohouIntroTimer<=0)return;
+  const t=G.shohouIntroTimer;const maxT=90;
+  const alpha=t>70?Math.min(1,(maxT-t)/20):t<20?t/20:1;
+  ctx.save();ctx.globalAlpha=alpha;
+  // 暗転オーバーレイ
+  ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(0,0,W,H);
+  // 枠
+  ctx.shadowBlur=30;ctx.shadowColor='#ff6600';
+  ctx.strokeStyle='#ff8800';ctx.lineWidth=2;
+  ctx.beginPath();ctx.roundRect(W/2-260,H/2-48,520,96,12);ctx.stroke();
+  // テロップ
+  const pulse=Math.sin(G.frameN*0.25)*0.08+0.92;
+  ctx.scale(pulse,pulse);ctx.translate(W/2*(1-pulse),H/2*(1-pulse));
+  ctx.fillStyle='#ffffff';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+  ctx.fillText('⚡ 商流拳ゲージMAX！',W/2,H/2-14);
+  ctx.shadowBlur=20;ctx.shadowColor='#ff4400';
+  ctx.fillStyle='#FFD700';ctx.font='bold 28px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText('商流拳モード突入！！',W/2,H/2+22);
+  ctx.shadowBlur=0;ctx.restore();
 }
 
 // ── 商流拳エフェクト（MAX演出）──
@@ -1603,6 +1609,15 @@ function loop(){
   }
   else if(G.phase==='fight'){
     if(G.hitstop>0){G.hitstop--;}
+    else if(G.shohouIntroTimer>0){
+      G.shohouIntroTimer--;
+      if(G.wrongFlash>0)G.wrongFlash--;
+      if(G.playerHurt>0)G.playerHurt--;if(G.enemyHurt>0)G.enemyHurt--;if(G.playerAtk>0)G.playerAtk--;
+      if(G.shohouIntroTimer<=0){
+        startShohouMode();shohouTimer=200;SFX.shohou();flash('#ff6600',0.85);shake(16);startShohouBGM();
+        unlockAchievement('shohou_used');shohouCount++;if(shohouCount>=3)unlockAchievement('shohou3');
+      }
+    }
     else{
       G.atkTimer--;
       if(G.atkTimer<=0){
@@ -1632,7 +1647,7 @@ function loop(){
     const enemyState=!enemyAlive?'ko':G.enemyHurt>0?'hurt':G.atkTimer<80?'charge':'idle';
     if(G.enemyHurt>0&&Math.floor(G.enemyHurt/3)%2===0){ctx.save();ctx.filter='brightness(3) saturate(0)';ctx.translate(esx,0);drawEnemy(542,222,enemyState);ctx.restore();}
     else{ctx.translate(esx,0);drawEnemy(542,222,enemyState);ctx.translate(-esx,0);}
-    drawHUD();drawWordPanel();drawShohouEffect();
+    drawHUD();drawWordPanel();drawShohouIntro();drawShohouEffect();
     if(flashA>0.01){ctx.globalAlpha=flashA;ctx.fillStyle=flashC;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
     drawAchievements();drawNonOfficialBadge();
   }
@@ -1699,7 +1714,7 @@ function handleKey(key,code){
   if(code==='Enter'){
     if(G.phase==='disclaimer'){G.phase='modeselect';return;}
     if(G.phase==='modeselect'){G.phase='title';startChip('title');return;}
-    if(G.phase==='title'){stopChip();shohouPriorityIdx=0;shohouCount=0;startStage(0);}
+    if(G.phase==='title'){stopChip();shohouWordIdx=0;shohouCount=0;startStage(0);}
     else if(G.phase==='stageclear'){
       if(G.stageIdx<STAGES.length-1){stopChip();startStage(G.stageIdx+1);}
       else{stopChip();G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);unlockAchievement('allclear');setTimeout(()=>startChip('clear'),800);}
@@ -1712,17 +1727,8 @@ function handleKey(key,code){
     if(code==='ArrowRight'){selectedDiff=DIFF_OPTS[(idx+1)%DIFF_OPTS.length];return;}
     if(code==='ArrowLeft'){selectedDiff=DIFF_OPTS[(idx+DIFF_OPTS.length-1)%DIFF_OPTS.length];return;}
   }
-  if(code==='Space'&&G.phase==='fight'&&!G.isShohouMode){
-    if(G.superGauge>=100){
-      startShohouMode();shohouTimer=200;SFX.shohou();flash('#ff6600',0.85);shake(16);startShohouBGM();
-      unlockAchievement('shohou_used');
-      shohouCount++;
-      if(shohouCount>=3)unlockAchievement('shohou3');
-    }
-    return;
-  }
   if(G.phase!=='fight')return;
-  if(G.hitstop>0)return;
+  if(G.hitstop>0||G.shohouIntroTimer>0)return;
   const word=G.isShohouMode?G.shohouWord:G.currentWord;
   if(!word)return;
   if(code==='Backspace'){if(G.typedIndex>0){G.typedIndex--;G.combo=0;G.comboTimer=0;G.wrongFlash=4;}return;}
@@ -1785,7 +1791,7 @@ function processWordComplete(word){
   if(G.combo===50){comboBurst(W/2,H/2,50);flash('#ffffff',0.8);shake(20);unlockAchievement('combo50');}
   const prevGauge=G.superGauge;
   G.superGauge=Math.min(100,G.superGauge+14+Math.min(G.combo,6)*4);
-  if(prevGauge<100&&G.superGauge>=100)SFX.gaugeFull();
+  if(prevGauge<100&&G.superGauge>=100){SFX.gaugeFull();G.shohouIntroTimer=90;}
   if(G.enemyHp<=0){
     G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
     stopShohouBGM();
@@ -1885,7 +1891,7 @@ cvs.addEventListener('click',e=>{
     const btnW=92,btnH=30,btnY=H/2+66,gap=12;const totalBtnW=DIFF_OPTS.length*(btnW+gap)-gap;
     let clicked=false;
     DIFF_OPTS.forEach((d,i)=>{const bx=W/2-totalBtnW/2+i*(btnW+gap);if(mx>=bx&&mx<=bx+btnW&&my>=btnY&&my<=btnY+btnH){selectedDiff=d;clicked=true;}});
-    if(!clicked){shohouPriorityIdx=0;shohouCount=0;startStage(0);}
+    if(!clicked){shohouWordIdx=0;shohouCount=0;startStage(0);}
   }
 });
 
