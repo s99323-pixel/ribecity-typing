@@ -92,8 +92,20 @@ const SFX={
     osc(400+idx*(600/Math.max(len-1,1)),0.025,'sine',0.08);
   },
   wrong:()=>{osc(90,0.18,'sawtooth',0.28,0,45);osc(55,0.22,'square',0.18,0,30);nz(0.14,0.25,200);},
-  wordClear:()=>{[523,659,784,1047].forEach((f,i)=>{osc(f,0.18,'sine',0.18,i*0.06);});nz(0.1,0.12,800);},
+  wordClear:()=>{
+    // ドスッとした打撃音 + 上昇SE
+    osc(48,0.10,'sine',1.0,0,22);osc(95,0.06,'sine',0.65,0.01,40);nz(0.09,0.85,350);
+    setTimeout(()=>{[523,659,784,1047].forEach((f,i)=>{osc(f,0.16,'sine',0.16,i*0.055);});nz(0.08,0.10,900);},60);
+  },
+  hit:()=>{
+    // 1キー正解ごとの軽い打撃音
+    osc(55,0.04,'sine',0.55,0,28);nz(0.04,0.35,280);
+  },
   enemyAtk:()=>{osc(80,0.25,'sawtooth',0.28,0,40);nz(0.18,0.22,250);osc(180,0.12,'square',0.12,0.05);},
+  missCounterAtk:()=>{
+    // ミス時の敵カウンター打撃音（鋭く短く）
+    osc(70,0.06,'sawtooth',0.55,0,35);nz(0.07,0.45,220);osc(140,0.04,'square',0.22,0.02);
+  },
   ko:()=>{[784,659,523,392,261].forEach((f,i)=>{osc(f,0.25,'sine',0.25,i*0.09);});osc(100,0.4,'sawtooth',0.3,0,50);nz(0.35,0.3,400);},
   clear:()=>{
     [523,659,784,1047,784,1047,1319,1047,1319,1568].forEach((f,i)=>{osc(f,0.28,'sine',0.3,i*0.08);});
@@ -541,6 +553,43 @@ function updateFX(){
   if(Math.abs(zoomScale-zoomTargetScale)<0.001)zoomScale=zoomTargetScale;
   if(lightningTimer>0)lightningTimer--;
 }
+// ── インパクトライン（放射状の打撃線）──
+let impactLines=[];
+function addImpact(x,y,count=14,color='#FFD700'){
+  impactLines.push({x,y,count,color,timer:18,maxTimer:18});
+}
+function drawImpactLines(){
+  impactLines=impactLines.filter(im=>{
+    im.timer--;
+    const a=im.timer/im.maxTimer;
+    const alpha=a>0.5?1:(a*2);
+    ctx.save();ctx.globalAlpha=alpha;
+    ctx.strokeStyle=im.color;ctx.shadowBlur=14;ctx.shadowColor=im.color;
+    for(let i=0;i<im.count;i++){
+      const ang=(i/im.count)*Math.PI*2+(im.timer*0.05);
+      const r1=18+(1-a)*12;const r2=r1+(1-a)*55+Math.random()*20;
+      ctx.lineWidth=2.5*(a);
+      ctx.beginPath();ctx.moveTo(im.x+Math.cos(ang)*r1,im.y+Math.sin(ang)*r1);
+      ctx.lineTo(im.x+Math.cos(ang)*r2,im.y+Math.sin(ang)*r2);ctx.stroke();
+    }
+    ctx.shadowBlur=0;ctx.restore();
+    return im.timer>0;
+  });
+}
+
+// ── 敵ヒット白フラッシュ ──
+let enemyHitFlash=0;
+function triggerEnemyHitFlash(){enemyHitFlash=10;}
+function drawEnemyHitFlash(x,y){
+  if(enemyHitFlash<=0)return;
+  enemyHitFlash--;
+  const a=enemyHitFlash/10;
+  ctx.save();ctx.globalAlpha=a*0.85;ctx.fillStyle='#ffffff';
+  ctx.shadowBlur=30*a;ctx.shadowColor='#ffffff';
+  ctx.beginPath();ctx.ellipse(x,y-30,45,70,0,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;ctx.restore();
+}
+
 function drawLightning(x1,y1,x2,y2,alpha=1){
   ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='#88aaff';ctx.lineWidth=2;ctx.shadowBlur=12;ctx.shadowColor='#4466ff';
   ctx.beginPath();ctx.moveTo(x1,y1);
@@ -705,6 +754,24 @@ function drawLion(x,y,state='idle'){
   ctx.fillStyle='#d08818';ctx.beginPath();ctx.ellipse(-14,-16,8,9,0.3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(14,-16,8,9,-0.3,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='#ff9090';ctx.beginPath();ctx.ellipse(-14,-16,4.5,6,0.3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(14,-16,4.5,6,-0.3,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='#FFD700';ctx.shadowBlur=6;ctx.shadowColor='#FFD700';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText('¥',0,-11);ctx.shadowBlur=0;
+
+  // 勝利時：右拳から炎エフェクト
+  if(state==='win'){
+    const fistX=30;const fistY=-44+winJump*0.5;
+    const pulse=Math.sin(t*0.18)*0.5+0.5;
+    for(let i=0;i<3;i++){
+      const fi=i/3;const fr=8+fi*14+pulse*6;
+      const fa=0.9-fi*0.3;
+      const fc=i===0?'#fff':i===1?'#FFD700':'#ff6600';
+      ctx.shadowBlur=18+fi*10;ctx.shadowColor=fc;ctx.fillStyle=fc;
+      ctx.globalAlpha=fa*(0.7+pulse*0.3);
+      ctx.beginPath();
+      ctx.ellipse(fistX,fistY-fr*0.4-fi*8,fr*0.55,fr,0,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha=1;ctx.shadowBlur=0;
+  }
+
   ctx.restore();
 }
 
@@ -1647,6 +1714,7 @@ function loop(){
     const enemyState=!enemyAlive?'ko':G.enemyHurt>0?'hurt':G.atkTimer<80?'charge':'idle';
     if(G.enemyHurt>0&&Math.floor(G.enemyHurt/3)%2===0){ctx.save();ctx.filter='brightness(3) saturate(0)';ctx.translate(esx,0);drawEnemy(542,222,enemyState);ctx.restore();}
     else{ctx.translate(esx,0);drawEnemy(542,222,enemyState);ctx.translate(-esx,0);}
+    drawImpactLines();drawEnemyHitFlash(542,222);
     drawHUD();drawWordPanel();drawShohouIntro();drawShohouEffect();
     if(flashA>0.01){ctx.globalAlpha=flashA;ctx.fillStyle=flashC;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
     drawAchievements();drawNonOfficialBadge();
@@ -1747,7 +1815,15 @@ function handleKey(key,code){
       processWordComplete(word);
     }
   }else{
-    G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
+    G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(6);SFX.wrong();wrongBurst(W/2,H-90);
+    // ミス→敵カウンター攻撃（Ozawa-Ken方式）
+    const missAtk=Math.max(3,Math.floor(STAGES[G.stageIdx].enemyAtk*0.4));
+    G.playerHp=Math.max(0,G.playerHp-missAtk);
+    G.playerHurt=14;G.stageNoDamage=false;
+    SFX.missCounterAtk();
+    addDmgNum(rand(150,210),rand(190,230),`-${missAtk}`,'#4488ff',false);
+    addImpact(178,200,10,'#4488ff');
+    if(G.playerHp<=0){G.phase='gameover';stopBGM();saveHS(G.score,G.comboMax);startChip('gameover');}
   }
 }
 function processWordComplete(word){
@@ -1780,8 +1856,10 @@ function processWordComplete(word){
     addDmgNum(rand(510,575),rand(160,200),`-${dmg}`,'#ff6600',true);
   }
   G.combo++;G.comboTimer=120;G.comboMax=Math.max(G.comboMax,G.combo);
-  G.playerAtk=20;G.enemyHurt=22;G.hitstop=6;
-  shake(6);flash('#FFD700',0.42);SFX.wordClear();
+  G.playerAtk=20;G.enemyHurt=22;G.hitstop=8;
+  shake(7);flash('#FFD700',0.45);SFX.wordClear();
+  triggerEnemyHitFlash();
+  addImpact(542,200,14,'#FFD700');
   wordClearBurst(word.word,W/2,H-110);
   hpBarFlash=Math.max(hpBarFlash,12);hpLerpSpeed=Math.max(hpLerpSpeed,0.22);
   addProj(220,185,'#FFD700');
