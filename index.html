@@ -318,6 +318,8 @@ const WORD_DB=[
   {word:'kogane_1000man',jp:'まず1000万を貯めろ！',dmg:95},
   {word:'invest_now_24',jp:'今すぐ投資を始めろ！24',dmg:102},
   {word:'black_lion_9lives',jp:'ブラック学長に9つの命あり',dmg:108},
+  {word:'kogane5000man',jp:'🏔️ 小金持ち山の頂上は5000万！',dmg:115},
+  {word:'fire5000man',jp:'💰 5000万円で経済的自由を掴め！',dmg:118},
   {word:'fire_7_24_365',jp:'FIRE達成で365日自由！',dmg:112},
   {word:'zx_cogane_cv',jp:'行動なくして資産なし！',dmg:105},
   {word:'bn_million_1',jp:'億り人への第一歩！',dmg:98},
@@ -404,7 +406,7 @@ const ENEMY_LINES=[
   ['詐欺…見抜かれただと…！','うまい話には…罠があったか…'],
   ['保険の…見直しは…させん！','不要な保険料で…稼いでたのに…'],
   ['完璧な手数料プランが…崩れた…','お客様の資産は…私の収益に…'],
-  ['学長の…力で…負けるとは…','複利の…真の力…恐るべし…！'],
+  ['学長の…力で…負けるとは…','5000万円…小金持ち山の頂上…恐るべし…！'],
 ];
 let STAGES=STAGES_BASE;
 function applyDifficulty(diff){
@@ -1816,14 +1818,6 @@ function handleKey(key,code){
     }
   }else{
     G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(6);SFX.wrong();wrongBurst(W/2,H-90);
-    // ミス→敵カウンター攻撃（Ozawa-Ken方式）
-    const missAtk=Math.max(3,Math.floor(STAGES[G.stageIdx].enemyAtk*0.4));
-    G.playerHp=Math.max(0,G.playerHp-missAtk);
-    G.playerHurt=14;G.stageNoDamage=false;
-    SFX.missCounterAtk();
-    addDmgNum(rand(150,210),rand(190,230),`-${missAtk}`,'#4488ff',false);
-    addImpact(178,200,10,'#4488ff');
-    if(G.playerHp<=0){G.phase='gameover';stopBGM();saveHS(G.score,G.comboMax);startChip('gameover');}
   }
 }
 function processWordComplete(word){
