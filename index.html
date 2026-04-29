@@ -139,7 +139,7 @@ function startChip(type){
   const file=files[type];if(!file)return;
   chipAudio=new Audio(file);
   chipAudio.loop=(type!=='gameover');
-  chipAudio.volume=type==='gameover'?0.5:0.48;
+  chipAudio.volume=type==='gameover'?0.5:(type==='title'?0.24:0.48);
   chipAudio.play().catch(e=>console.warn('chipBGM:',e));
 }
 
@@ -364,9 +364,18 @@ const SHOHOU_WORDS=[
 
 // ── 難易度 ──
 const DIFFICULTY_DEFS={
-  easy:  {label:'EASY',  hpMul:0.6,atkMul:0.6,intervalMul:1.6,playerHp:160,col:'#44ff88'},
-  normal:{label:'NORMAL',hpMul:1.0,atkMul:1.0,intervalMul:1.0,playerHp:100,col:'#FFD700'},
-  hard:  {label:'HARD',  hpMul:1.5,atkMul:1.5,intervalMul:0.65,playerHp:60,col:'#ff4444'},
+  easy:  {label:'EASY',  hpMul:0.6,atkMul:0.6,intervalMul:1.6,playerHp:160,col:'#44ff88',
+    title:'お金の大学 1年生',titleCol:'#cd7f32',
+    msg1:'おはよー！よう頑張ったな〜',
+    msg2:'今日が人生で一番若い日や。一歩踏み出した自分を褒めたれよ〜'},
+  normal:{label:'NORMAL',hpMul:1.0,atkMul:1.0,intervalMul:1.0,playerHp:100,col:'#FFD700',
+    title:'リベの民',titleCol:'#c0c0c0',
+    msg1:'ええやん！もう立派なリベの民や〜',
+    msg2:'貯める・稼ぐ・増やす・守る・使う、5つの力を磨いてこな！'},
+  hard:  {label:'HARD',  hpMul:1.5,atkMul:1.5,intervalMul:0.65,playerHp:60,col:'#ff4444',
+    title:'経済的自由人 〜FIRE達成〜',titleCol:'#FFD700',
+    msg1:'おめでとう！本物の経済的自由人や！',
+    msg2:'自由な人生は自分で設計するもんやで〜。借金なんかすんじゃねえ！'},
 };
 let selectedDiff='normal';
 
@@ -1555,16 +1564,29 @@ function drawStageClear(){
 function drawGameClear(){
   ctx.fillStyle='rgba(0,0,0,0.82)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
   const t=G.frameN*0.02;
+  const D=DIFFICULTY_DEFS[selectedDiff]||DIFFICULTY_DEFS.normal;
+  // HARDのみ画面フラッシュ
+  if(selectedDiff==='hard'){
+    const flashA=Math.max(0,Math.sin(G.frameN*0.04))*0.18;
+    ctx.fillStyle=`rgba(255,215,0,${flashA})`;ctx.fillRect(0,0,W,H);
+  }
   // 背景スパークル
-  for(let i=0;i<30;i++){const sx=(i*97+G.frameN*0.5)%W,sy=(i*67+G.frameN*0.3)%H;ctx.globalAlpha=Math.sin(G.frameN*0.05+i)*0.3+0.3;ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(sx,sy,1.2,0,Math.PI*2);ctx.fill();}
+  const sparkles=selectedDiff==='hard'?50:(selectedDiff==='normal'?35:25);
+  for(let i=0;i<sparkles;i++){const sx=(i*97+G.frameN*0.5)%W,sy=(i*67+G.frameN*0.3)%H;ctx.globalAlpha=Math.sin(G.frameN*0.05+i)*0.3+0.3;ctx.fillStyle=D.titleCol;ctx.beginPath();ctx.arc(sx,sy,1.2,0,Math.PI*2);ctx.fill();}
   ctx.globalAlpha=1;
-  ctx.shadowBlur=55+Math.sin(t)*14;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';ctx.font='bold 44px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('FIRE達成！！',W/2,H/2-60);ctx.shadowBlur=0;
-  ctx.fillStyle='#fff';ctx.font='bold 18px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('今日が人生で一番若い日だ！',W/2,H/2-8);
-  ctx.fillStyle='rgba(255,180,0,0.8)';ctx.font='14px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('借金なんかすんじゃねえ！',W/2,H/2+18);
+  // メインタイトル「FIRE達成！！」
+  ctx.shadowBlur=55+Math.sin(t)*14;ctx.shadowColor=D.titleCol;ctx.fillStyle=D.titleCol;ctx.font='bold 44px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('FIRE達成！！',W/2,H/2-78);ctx.shadowBlur=0;
+  // 称号バッジ
+  ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font='11px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(`〜 ${D.label} クリア記念 称号 〜`,W/2,H/2-44);
+  ctx.shadowBlur=18;ctx.shadowColor=D.titleCol;ctx.fillStyle=D.titleCol;ctx.font='bold 22px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(D.title,W/2,H/2-20);ctx.shadowBlur=0;
+  // 学長のお言葉
+  ctx.fillStyle='#fff';ctx.font='bold 16px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(D.msg1,W/2,H/2+10);
+  ctx.fillStyle='rgba(255,200,80,0.85)';ctx.font='13px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(D.msg2,W/2,H/2+34);
+  // スコア
   const hs=loadHS();const isNewBest=G.score>hs.score;
   ctx.fillStyle=isNewBest?'#FFD700':'#aaa';ctx.font='14px monospace';
-  ctx.fillText(`SCORE: ${G.score}${isNewBest?' ★NEW BEST!':''}  MAX COMBO: ${G.comboMax}`,W/2,H/2+48);
-  if(Math.floor(G.frameN/30)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter でタイトルへ ]',W/2,H/2+78);}
+  ctx.fillText(`SCORE: ${G.score}${isNewBest?' ★NEW BEST!':''}  MAX COMBO: ${G.comboMax}`,W/2,H/2+62);
+  if(Math.floor(G.frameN/30)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter でタイトルへ ]',W/2,H/2+90);}
 }
 
 function drawGameOver(){
@@ -1674,7 +1696,8 @@ function loop(){
   else if(G.phase==='gameclear'){
     const bg2=ctx.createLinearGradient(0,0,0,H);bg2.addColorStop(0,'#000010');bg2.addColorStop(1,'#001000');ctx.fillStyle=bg2;ctx.fillRect(0,0,W,H);
     drawLion(W/2,285,'win');drawPts();updatePts();drawGameClear();
-    if(Math.random()<0.08)coinBurst(Math.random()*W,Math.random()*H*0.6);drawAchievements();drawNonOfficialBadge();
+    const burstP=selectedDiff==='hard'?0.18:(selectedDiff==='normal'?0.10:0.06);
+    if(Math.random()<burstP)coinBurst(Math.random()*W,Math.random()*H*0.6);drawAchievements();drawNonOfficialBadge();
   }
   else if(G.phase==='gameover'){drawBG();drawPts();updatePts();drawGameOver();drawAchievements();drawNonOfficialBadge();}
 
