@@ -151,7 +151,7 @@ function startChip(type){
   const file=files[type];if(!file)return;
   chipAudio=new Audio(file);
   chipAudio.loop=(type!=='gameover');
-  chipAudio.volume=type==='gameover'?0.25:0.24;
+  chipAudio.volume=type==='gameover'?0.25:(type==='title'?0.12:0.24);
   chipAudio.play().catch(e=>console.warn('chipBGM:',e));
 }
 
