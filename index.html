@@ -570,17 +570,95 @@ function wordClearBurst(word,px,py){
 function rand(a,b){return Math.random()*(b-a)+a;}
 function lerp(a,b,t){return a+(b-a)*t;}
 
-function addProj(x,y,color){projs.push({x,y,tx:510,ty:185,color:color||'#FFD700'});}
+// ── 投擲物：学長が敵に投げる「小判（こばん）」──
+// type: 'small' (キー打鍵時) / 'big' (ワード完了時) / 'critical' (商流拳大判)
+function addProj(x,y,color,type){
+  type=type||'big';
+  // 山なり軌道用：tx/tyへ放物線で飛ぶ。ピーク高はsizeに比例
+  const tx=540+(Math.random()-0.5)*30, ty=200+(Math.random()-0.5)*20;
+  const size=type==='critical'?28:type==='big'?16:9;
+  const speed=type==='critical'?14:type==='big'?20:26;
+  const totalDist=Math.sqrt((tx-x)**2+(ty-y)**2);
+  const flightFrames=Math.max(8,totalDist/speed);
+  projs.push({
+    x0:x,y0:y,x,y,tx,ty,
+    color:color||'#FFD700',
+    size,type,
+    rot:0,rotSpeed:(Math.random()*0.4+0.3)*(Math.random()<0.5?1:-1),
+    t:0,maxT:flightFrames,
+    arcHeight:type==='critical'?80:type==='big'?55:35,
+  });
+}
+function drawKoban(x,y,r,rot,color){
+  // 小判（楕円）を3D風に回転させる
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(rot*0.15); // 平面回転は控えめ
+  // y軸回転を擬似的にscale(cos(rot),1)で表現
+  const sx=Math.abs(Math.cos(rot));
+  ctx.scale(Math.max(0.2,sx),1);
+  // 影
+  ctx.shadowBlur=18;ctx.shadowColor=color;
+  // 外輪（オレンジ→金グラデ）
+  const g=ctx.createRadialGradient(0,-r*0.3,r*0.1,0,0,r);
+  g.addColorStop(0,'#fff8c0');
+  g.addColorStop(0.4,color);
+  g.addColorStop(1,'#a87000');
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.ellipse(0,0,r,r*0.62,0,0,Math.PI*2);ctx.fill();
+  // 縁取り
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(180,120,0,0.9)';ctx.lineWidth=Math.max(1,r*0.08);
+  ctx.beginPath();ctx.ellipse(0,0,r,r*0.62,0,0,Math.PI*2);ctx.stroke();
+  // 「金」または「両」の文字（裏面はモノグラム）
+  if(sx>0.55){
+    ctx.fillStyle='#5a3a00';
+    ctx.font=`bold ${Math.floor(r*0.85)}px "Hiragino Sans","Yu Gothic",monospace`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('金',0,1);
+  }
+  ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
 function updateDrawProjs(){
   projs=projs.filter(p=>{
-    const dx=p.tx-p.x,dy=p.ty-p.y,dist=Math.sqrt(dx*dx+dy*dy);
-    if(dist<16){coinBurst(p.tx,p.ty);hitBurst(p.tx-20,p.ty+15,p.color);return false;}
-    const spd=18;p.x+=dx/dist*spd;p.y+=dy/dist*spd;
-    addPt(p.x+(Math.random()-0.5)*4,p.y+(Math.random()-0.5)*4,(Math.random()-0.5)*0.5,(Math.random()-0.5)*0.5,10,p.color,2.5);
-    ctx.shadowBlur=22;ctx.shadowColor=p.color;
-    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y,8,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();
-    ctx.shadowBlur=0;return true;
+    p.t++;
+    const r=Math.min(1,p.t/p.maxT);
+    // 放物線軌道
+    p.x=lerp(p.x0,p.tx,r);
+    const baseY=lerp(p.y0,p.ty,r);
+    const arc=-Math.sin(r*Math.PI)*p.arcHeight;
+    p.y=baseY+arc;
+    p.rot+=p.rotSpeed;
+    // 着弾判定
+    if(r>=1){
+      coinBurst(p.tx,p.ty);
+      hitBurst(p.tx-20,p.ty+15,p.color);
+      // typeに応じた着弾エフェクト
+      if(p.type==='critical'){
+        addImpact(p.tx,p.ty,22,'#FFD700');
+        for(let i=0;i<8;i++){
+          addStar(p.tx,p.ty,Math.cos(i)*4,Math.sin(i)*4-2,40,'#FFD700',6);
+        }
+      }else if(p.type==='big'){
+        addImpact(p.tx,p.ty,10,p.color);
+      }
+      return false;
+    }
+    // 軌跡パーティクル（ティルテール）
+    if(p.type==='small'){
+      if(p.t%2===0)addPt(p.x,p.y,(Math.random()-0.5)*0.6,(Math.random()-0.5)*0.6,12,p.color,2);
+    }else{
+      addPt(p.x+(Math.random()-0.5)*4,p.y+(Math.random()-0.5)*4,(Math.random()-0.5)*0.5,(Math.random()-0.5)*0.5,12,p.color,3);
+      // 大判は虹色のキラめき
+      if(p.type==='critical'&&p.t%3===0){
+        const hue=(p.t*15)%360;
+        addStar(p.x,p.y,(Math.random()-0.5)*2,(Math.random()-0.5)*2,20,`hsl(${hue},100%,65%)`,4);
+      }
+    }
+    // 描画
+    drawKoban(p.x,p.y,p.size,p.rot,p.color);
+    return true;
   });
 }
 function updatePts(){pts=pts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.vx*=0.96;p.life--;return p.life>0;});}
@@ -2017,6 +2095,8 @@ function handleKey(key,code){
     G.enemyHurt=Math.max(G.enemyHurt,5);
     enemyTypingShake=3;
     addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
+    // 毎キー：学長が小判を1枚投擲
+    addProj(220,200,'#FFD700','small');
     if(G.typedIndex>=word.word.length){
       processWordComplete(word);
     }
@@ -2065,7 +2145,12 @@ function processWordComplete(word){
   addImpact(542,200,14,'#FFD700');
   wordClearBurst(word.word,W/2,H-110);
   hpBarFlash=Math.max(hpBarFlash,12);hpLerpSpeed=Math.max(hpLerpSpeed,0.22);
-  addProj(220,185,'#FFD700');
+  // ワード完成：大判を投擲（商流拳時は虹色クリティカル大判）
+  addProj(220,185,isShohouFinish?'#ffaa00':'#FFD700',isShohouFinish?'critical':'big');
+  if(isShohouFinish){
+    // 商流拳：複数の大判を時間差で投げる
+    for(let i=1;i<=3;i++)setTimeout(()=>addProj(220,185+(Math.random()-0.5)*30,'#ffcc00','big'),i*80);
+  }
   if(G.combo===10){SFX.combo10();comboBurst(W/2,H/2,10);unlockAchievement('combo10');}
   if(G.combo===20){comboBurst(W/2,H/2,20);flash('#88ffaa',0.5);unlockAchievement('combo20');}
   if(G.combo===30){comboBurst(W/2,H/2,30);flash('#FFD700',0.6);unlockAchievement('combo30');}
@@ -2141,6 +2226,7 @@ function processFlickChar(ch){
     G.enemyHurt=Math.max(G.enemyHurt,5);
     enemyTypingShake=3;
     addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
+    addProj(220,200,'#FFD700','small');
     if(G.flickTyped===word.word){
       G.typedIndex=word.word.length;
       processWordComplete(word);
