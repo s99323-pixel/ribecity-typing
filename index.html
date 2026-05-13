@@ -630,6 +630,7 @@ let hpBarFlash=0,hpLerpSpeed=0.10;
 let flashA=0,flashC='#fff';
 let zoomScale=1,zoomTargetScale=1,zoomCX=W/2,zoomCY=H/2;
 let lightningTimer=0;
+let playerDamageVignette=0; // 被弾時の赤ビネット表示タイマー
 function shake(p){shakePow=Math.max(shakePow,p);}
 function flash(c,a){flashC=c;flashA=a;}
 function updateFX(){
@@ -639,6 +640,27 @@ function updateFX(){
   zoomScale+=(zoomTargetScale-zoomScale)*0.1;
   if(Math.abs(zoomScale-zoomTargetScale)<0.001)zoomScale=zoomTargetScale;
   if(lightningTimer>0)lightningTimer--;
+  if(playerDamageVignette>0)playerDamageVignette--;
+}
+// ── 被弾時の赤ビネット（プレイヤーがダメージを受けた合図）──
+function drawDamageVignette(){
+  if(playerDamageVignette<=0)return;
+  const t=playerDamageVignette;
+  const a=Math.min(1,t/42)*0.85;
+  // 画面端から内側に向かう赤グラデ
+  const g=ctx.createRadialGradient(W/2,H/2,W*0.18,W/2,H/2,W*0.62);
+  g.addColorStop(0,'rgba(255,0,0,0)');
+  g.addColorStop(0.6,`rgba(255,30,40,${a*0.35})`);
+  g.addColorStop(1,`rgba(255,0,0,${a*0.95})`);
+  ctx.save();
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,W,H);
+  // 上下に赤帯（パルス）
+  const pulse=Math.sin(G.frameN*0.5)*0.3+0.7;
+  ctx.fillStyle=`rgba(255,40,60,${a*0.5*pulse})`;
+  ctx.fillRect(0,0,W,8);
+  ctx.fillRect(0,H-8,W,8);
+  ctx.restore();
 }
 // ── インパクトライン（放射状の打撃線）──
 let impactLines=[];
@@ -1862,7 +1884,7 @@ function loop(){
       if(G.wrongFlash>0)G.wrongFlash--;
       if(G.playerHurt>0)G.playerHurt--;if(G.enemyHurt>0)G.enemyHurt--;if(G.playerAtk>0)G.playerAtk--;
       if(G.shohouIntroTimer<=0){
-        startShohouMode();shohouTimer=200;SFX.shohou();flash('#ff6600',0.85);shake(16);startShohouBGM();
+        startShohouMode();shohouTimer=200;SFX.shohou();flash('#ff6600',0.85);startShohouBGM();
         unlockAchievement('shohou_used');shohouCount++;if(shohouCount>=3)unlockAchievement('shohou3');
       }
     }
@@ -1872,7 +1894,8 @@ function loop(){
         const st=STAGES[G.stageIdx];G.atkTimer=st.atkInterval;
         G.playerHp=Math.max(0,G.playerHp-st.enemyAtk);
         G.playerHurt=20;G.stageNoDamage=false;
-        shake(9);flash('#0044cc',0.45);SFX.enemyAtk();wrongBurst(178,202);
+        shake(14);SFX.enemyAtk();wrongBurst(178,202);
+        playerDamageVignette=42;addDmgNum(178,168,'被弾！','#ff3366',true);
         if(G.playerHp<=0){G.phase='gameover';stopBGM();saveHS(G.score,G.comboMax);startChip('gameover');}
       }
       if(G.comboTimer>0)G.comboTimer--;else if(G.combo>0)G.combo=0;
@@ -1898,6 +1921,7 @@ function loop(){
     drawImpactLines();drawEnemyHitFlash(542,222);
     drawHUD();drawWordPanel();drawShohouIntro();drawShohouEffect();
     if(flashA>0.01){ctx.globalAlpha=flashA;ctx.fillStyle=flashC;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
+    drawDamageVignette();
     drawAchievements();drawNonOfficialBadge();
   }
   else if(G.phase==='paused'){drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();drawPause();drawAchievements();drawNonOfficialBadge();}
@@ -2021,7 +2045,8 @@ function processWordComplete(word){
     zoomTargetScale=2.2;zoomCX=178;zoomCY=210;
     setTimeout(()=>{zoomTargetScale=1.6;zoomCX=540;zoomCY=200;},520);
     setTimeout(()=>zoomTargetScale=1.0,1800);
-    shake(34);flash('#ff8800',1.0);superBurst(540,200);
+    flash('#ff8800',1.0);superBurst(540,200);
+    enemyTypingShake=24;G.enemyHurt=Math.max(G.enemyHurt,40);
     hpLerpSpeed=0.45;hpBarFlash=30;
   }
   G.enemyHp=Math.max(0,G.enemyHp-dmg);G.score+=dmg*10*(1+G.combo*0.1|0);
@@ -2034,7 +2059,8 @@ function processWordComplete(word){
   }
   G.combo++;G.comboTimer=120;G.comboMax=Math.max(G.comboMax,G.combo);
   G.playerAtk=20;G.enemyHurt=22;G.hitstop=8;
-  shake(7);flash('#FFD700',0.45);SFX.wordClear();
+  flash('#FFD700',0.32);SFX.wordClear();
+  enemyTypingShake=Math.max(enemyTypingShake,14);
   triggerEnemyHitFlash();
   addImpact(542,200,14,'#FFD700');
   wordClearBurst(word.word,W/2,H-110);
@@ -2042,15 +2068,16 @@ function processWordComplete(word){
   addProj(220,185,'#FFD700');
   if(G.combo===10){SFX.combo10();comboBurst(W/2,H/2,10);unlockAchievement('combo10');}
   if(G.combo===20){comboBurst(W/2,H/2,20);flash('#88ffaa',0.5);unlockAchievement('combo20');}
-  if(G.combo===30){comboBurst(W/2,H/2,30);flash('#FFD700',0.6);shake(12);unlockAchievement('combo30');}
-  if(G.combo===50){comboBurst(W/2,H/2,50);flash('#ffffff',0.8);shake(20);unlockAchievement('combo50');}
+  if(G.combo===30){comboBurst(W/2,H/2,30);flash('#FFD700',0.6);unlockAchievement('combo30');}
+  if(G.combo===50){comboBurst(W/2,H/2,50);flash('#ffffff',0.8);unlockAchievement('combo50');}
   const prevGauge=G.superGauge;
   G.superGauge=Math.min(100,G.superGauge+14+Math.min(G.combo,6)*4);
   if(prevGauge<100&&G.superGauge>=100){SFX.gaugeFull();G.shohouIntroTimer=90;}
   if(G.enemyHp<=0){
     G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
     stopShohouBGM();
-    SFX.ko();shake(22);flash('#FFD700',0.92);G.enemyKoTimer=90;
+    SFX.ko();flash('#FFD700',0.92);G.enemyKoTimer=90;
+    enemyTypingShake=40;
     unlockAchievement('first_kill');
     if(G.stageNoDamage)unlockAchievement('nodamage');
     for(let i=0;i<24;i++)setTimeout(()=>coinBurst(Math.random()*W,Math.random()*H*0.5),i*75);
