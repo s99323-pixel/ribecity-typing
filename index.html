@@ -1059,6 +1059,17 @@ let flashA=0,flashC='#fff';
 let zoomScale=1,zoomTargetScale=1,zoomCX=W/2,zoomCY=H/2;
 let lightningTimer=0;
 let playerDamageVignette=0; // 被弾時の赤ビネット表示タイマー
+// ── 打鍵フィードバック ──
+let charPopMap={}; // {idx: G.frameN} 文字単位のpopアニメ起点
+let panelFlashTimer=0; // 打鍵時パネル一瞬光り
+let comboPulseTimer=0; // コンボ加算時の脈動
+let rainbowOverlayTimer=0; // 100コンボ虹色全画面
+// 打鍵時に呼ぶ
+function onKeyHit(){
+  charPopMap[G.typedIndex-1]=G.frameN;
+  panelFlashTimer=8;
+  comboPulseTimer=10;
+}
 function shake(p){shakePow=Math.max(shakePow,p);}
 function flash(c,a){flashC=c;flashA=a;}
 function updateFX(){
@@ -1069,6 +1080,49 @@ function updateFX(){
   if(Math.abs(zoomScale-zoomTargetScale)<0.001)zoomScale=zoomTargetScale;
   if(lightningTimer>0)lightningTimer--;
   if(playerDamageVignette>0)playerDamageVignette--;
+}
+// ── 100コンボ虹オーバーレイ（神域演出）──
+function drawRainbowOverlay(){
+  if(rainbowOverlayTimer<=0)return;
+  rainbowOverlayTimer--;
+  const t=rainbowOverlayTimer,mt=120;
+  const age=mt-t;
+  const fadeIn=Math.min(1,age/8);
+  const fadeOut=t<30?t/30:1;
+  const alpha=fadeIn*fadeOut;
+  ctx.save();
+  ctx.globalAlpha=alpha*0.45;
+  // 虹色グラデ
+  const grad=ctx.createLinearGradient(0,0,W,0);
+  for(let i=0;i<=8;i++){
+    grad.addColorStop(i/8,`hsl(${(i*45+G.frameN*3)%360},100%,55%)`);
+  }
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha=alpha;
+  // 中央テロップ
+  if(age>10){
+    const sc=Math.min(1,(age-10)/8);
+    ctx.translate(W/2,H/2);
+    ctx.scale(sc,sc);
+    ctx.textAlign='center';
+    ctx.shadowBlur=30;
+    for(let i=0;i<3;i++){
+      const ox=(Math.random()-0.5)*8,oy=(Math.random()-0.5)*8;
+      ctx.fillStyle=`hsla(${(i*120+G.frameN*4)%360},100%,60%,0.5)`;
+      ctx.shadowColor=`hsl(${(i*120+G.frameN*4)%360},100%,55%)`;
+      ctx.font='bold 56px "Hiragino Sans","Yu Gothic",monospace';
+      ctx.fillText('100 COMBO!!',ox,oy-10);
+    }
+    ctx.fillStyle='#fff';
+    ctx.shadowColor='#ff66ff';
+    ctx.fillText('100 COMBO!!',0,-10);
+    ctx.font='bold 24px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillStyle='#FFD700';
+    ctx.shadowColor='#FFD700';
+    ctx.fillText('神域に到達！',0,28);
+    ctx.shadowBlur=0;
+  }
+  ctx.restore();
 }
 // ── 被弾時の赤ビネット（プレイヤーがダメージを受けた合図）──
 function drawDamageVignette(){
@@ -1264,7 +1318,8 @@ function nextWord(){
   }
   G.currentWord=G.wordQueue.shift();G.typedIndex=0;G.wrongFlash=0;G.flickTyped='';
   G.wordStartTime=performance.now();G.isShohouMode=false;
-  G.wordMissCount=0; // PERFECT判定用：新ワード開始でリセット
+  G.wordMissCount=0; // PERFECT判定用
+  charPopMap={};     // 文字popアニメリセット
   if(inputMode==='smartphone'&&G.stageIdx===0)resetFlickInput();
 }
 
@@ -1762,6 +1817,16 @@ function drawWordPanel(){
   // 内側薄ボーダー
   ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;
   ctx.beginPath();ctx.roundRect(px+1,py+1,pw-2,ph-2,13);ctx.stroke();
+  // 打鍵時の白い光りオーバーレイ
+  if(panelFlashTimer>0){
+    const fa=panelFlashTimer/8;
+    ctx.strokeStyle=`rgba(255,255,255,${fa*0.85})`;
+    ctx.shadowBlur=14*fa;ctx.shadowColor='#fff';
+    ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.roundRect(px-1,py-1,pw+2,ph+2,15);ctx.stroke();
+    ctx.shadowBlur=0;
+    panelFlashTimer--;
+  }
   ctx.restore();
   if(G.isShohouMode){
     const blink=Math.floor(G.frameN/18)%2===0;
@@ -1807,7 +1872,25 @@ function drawWordPanel(){
     ctx.font=font;ctx.textAlign='center';
     const totalW=ctx.measureText(w).width;let curX=W/2-totalW/2;
     ctx.fillStyle='#FFD700';ctx.shadowBlur=12;ctx.shadowColor='#FFD700';
-    typed.split('').forEach(ch=>{const cw=ctx.measureText(ch).width;ctx.fillText(ch,curX+cw/2,textY);curX+=cw;});
+    // 打鍵済み文字をpopアニメ付きで描画（気持ちよさUP）
+    typed.split('').forEach((ch,i)=>{
+      const cw=ctx.measureText(ch).width;
+      const popFrame=charPopMap[i];
+      const popAge=popFrame!==undefined?G.frameN-popFrame:999;
+      if(popAge<10){
+        const scale=1+0.35*(1-popAge/10);
+        ctx.save();
+        const cx=curX+cw/2,cy=textY;
+        ctx.translate(cx,cy);ctx.scale(scale,scale);ctx.translate(-cx,-cy);
+        // 直近の文字は白フラッシュ
+        if(popAge<3){ctx.fillStyle='#ffffff';}
+        ctx.fillText(ch,cx,cy);
+        ctx.restore();
+      }else{
+        ctx.fillText(ch,curX+cw/2,textY);
+      }
+      curX+=cw;
+    });
     ctx.shadowBlur=0;
     if(remaining.length>0){
       const nextCh=remaining[0];const cw=ctx.measureText(nextCh).width;
@@ -2679,7 +2762,8 @@ function drawWealthMountain(t){
 function getResultRank(){
   const score=G.score;
   // 難易度補正
-  const diffMul={easy:1.0,normal:0.8,hard:0.6}[selectedDiff]||0.8;
+  // 難易度補正：HARDは敵HP1.5倍でスコア出にくいので逆転（QA-D修正）
+  const diffMul={easy:0.7,normal:1.0,hard:1.4}[selectedDiff]||1.0;
   const adjusted=score*diffMul;
   if(adjusted>=80000)return {rank:'FIRE',label:'🔥 FIRE達成',col:'#FFD700',glow:'#ff9900',sub:'経済的自由を完全制覇！',great:true};
   if(adjusted>=40000)return {rank:'KOGANE',label:'💰 小金持ち',col:'#88ff88',glow:'#00cc66',sub:'お金持ち街道の途中！',great:false};
@@ -2976,7 +3060,7 @@ function loop(){
     drawHUD();drawWordPanel();drawEnemyChargeWarn();drawShohouIntro();drawShohouEffect();
     drawLionQuote();checkLionHurtQuote();
     if(flashA>0.01){ctx.globalAlpha=flashA;ctx.fillStyle=flashC;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
-    drawLowHpVignette();drawDamageVignette();
+    drawLowHpVignette();drawDamageVignette();drawRainbowOverlay();
     drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();
   }
   else if(G.phase==='paused'){drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();drawPause();drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();}
@@ -3089,7 +3173,7 @@ function handleKey(key,code){
     if(G.phase==='title'){stopChip();shohouWordIdx=0;shohouCount=0;G.continuesUsed=0;startStage(0);}
     else if(G.phase==='stageclear'){
       if(G.stageIdx<STAGES.length-1){stopChip();startStage(G.stageIdx+1);}
-      else{stopChip();G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);unlockAchievement('allclear');setTimeout(()=>startChip('clear'),800);}
+      else{stopChip();G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);unlockAchievement('allclear');checkDailyChallenge();setTimeout(()=>startChip('clear'),800);}
     }
     else if(G.phase==='gameclear'||G.phase==='gameover'){stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;G.phase='title';startChip('title');}
     return;
@@ -3126,7 +3210,8 @@ function handleKey(key,code){
     G.enemyHurt=Math.max(G.enemyHurt,5);
     enemyTypingShake=3;
     addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
-    // 毎キー：学長が小判を1枚投擲（波紋は重いので削除）
+    onKeyHit();
+    // 毎キー：学長が小判を1枚投擲
     addProj(220,200,'#FFD700','small');
     if(G.typedIndex>=word.word.length){
       processWordComplete(word);
@@ -3211,7 +3296,7 @@ function processWordComplete(word){
     SFX.combo50();comboBurst(W/2,H/2,50);flash('#ffffff',0.8);unlockAchievement('combo50');
     const lines=LION_COMBO_LINES[50];showLionQuote(lines[Math.floor(Math.random()*lines.length)]);
   }
-  if(G.combo===100){SFX.combo100();comboBurst(W/2,H/2,100);flash('#ff66ff',1.0);}
+  if(G.combo===100){SFX.combo100();comboBurst(W/2,H/2,100);flash('#ff66ff',1.0);rainbowOverlayTimer=120;}
   checkDailyChallenge();
   const prevGauge=G.superGauge;
   G.superGauge=Math.min(100,G.superGauge+10+Math.min(G.combo,8)*3);
@@ -3301,6 +3386,7 @@ function processFlickChar(ch){
     G.enemyHurt=Math.max(G.enemyHurt,5);
     enemyTypingShake=3;
     addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
+    onKeyHit();
     addProj(220,200,'#FFD700','small');
     if(G.flickTyped===word.word){
       G.typedIndex=word.word.length;
