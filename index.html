@@ -175,7 +175,25 @@ const ACHIEVEMENTS=[
   {id:'wpm100',name:'神速',desc:'WPM 100以上！'},
   {id:'allclear',name:'FIRE達成',desc:'全ステージクリア'},
   {id:'stage5',name:'最終決戦',desc:'ステージ5に到達'},
+  {id:'badgeall',name:'5つの力 全開',desc:'5つの力バッジを全て点灯！'},
+  {id:'daily',name:'デイリー達成',desc:'今日のチャレンジを達成！'},
 ];
+// ── 5つの力バッジ（貯・稼・増・守・使）──
+const POWER_BADGES=[
+  {key:'save',  label:'貯', name:'貯める力', achievementId:'nodamage',    color:'#7fdfff', glow:'#3aa8ff', desc:'ノーダメで守って貯めろ'},
+  {key:'earn',  label:'稼', name:'稼ぐ力',   achievementId:'wpm60',       color:'#ffd76a', glow:'#ff9a00', desc:'WPM60以上で稼げ'},
+  {key:'grow',  label:'増', name:'増やす力', achievementId:'combo30',     color:'#7fffaa', glow:'#00d27f', desc:'30コンボで複利成長'},
+  {key:'guard', label:'守', name:'守る力',   achievementId:'shohou_used', color:'#ff8aa8', glow:'#ff3366', desc:'商流拳で詐欺から守れ'},
+  {key:'use',   label:'使', name:'使う力',   achievementId:'allclear',    color:'#c79bff', glow:'#8a4dff', desc:'FIREで自由に使え'},
+];
+function getUnlockedBadges(){
+  const ids=getAchievements();
+  return POWER_BADGES.filter(b=>ids.includes(b.achievementId)).map(b=>b.key);
+}
+function checkBadgeAll(){
+  const unlocked=getUnlockedBadges();
+  if(unlocked.length>=5)unlockAchievement('badgeall');
+}
 let achieveQueue=[];
 function getAchievements(){return loadHS().achievements||[];}
 function unlockAchievement(id){
@@ -184,6 +202,64 @@ function unlockAchievement(id){
   list.push(id);hs.achievements=list;localStorage.setItem(LS_KEY,JSON.stringify(hs));
   const def=ACHIEVEMENTS.find(a=>a.id===id);
   if(def)achieveQueue.push({name:def.name,desc:def.desc,timer:220});
+  // バッジに紐づく実績なら、全点灯チェック＆点灯演出
+  const badge=POWER_BADGES.find(b=>b.achievementId===id);
+  if(badge){
+    badgePulseTimer[badge.key]=90;
+    if(id!=='badgeall')checkBadgeAll();
+  }
+}
+// バッジ点灯アニメーション用
+const badgePulseTimer={save:0,earn:0,grow:0,guard:0,use:0};
+function drawPowerBadges(x,y,size,opts){
+  // x,y = 左上座標 / size = 1バッジの直径 / opts = {gap, showLabel, mini}
+  opts=opts||{};
+  const gap=opts.gap||(size*0.18);
+  const unlocked=getUnlockedBadges();
+  POWER_BADGES.forEach((b,i)=>{
+    const cx=x+i*(size+gap)+size/2;
+    const cy=y+size/2;
+    const isOn=unlocked.includes(b.key);
+    const pulse=badgePulseTimer[b.key]>0?(badgePulseTimer[b.key]/90):0;
+    if(pulse>0)badgePulseTimer[b.key]--;
+    ctx.save();
+    // 外枠リング（グラデ）
+    if(isOn){
+      const ringR=size/2+1+pulse*4;
+      ctx.shadowBlur=14+pulse*22;ctx.shadowColor=b.glow;
+      const grad=ctx.createRadialGradient(cx,cy,size*0.2,cx,cy,ringR);
+      grad.addColorStop(0,b.color);
+      grad.addColorStop(0.6,b.glow);
+      grad.addColorStop(1,'rgba(0,0,0,0.5)');
+      ctx.fillStyle=grad;
+      ctx.beginPath();ctx.arc(cx,cy,ringR,0,Math.PI*2);ctx.fill();
+      // 内側の濃い円
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(10,8,30,0.78)';
+      ctx.beginPath();ctx.arc(cx,cy,size/2-2,0,Math.PI*2);ctx.fill();
+      // 縁取り
+      ctx.strokeStyle=b.color;ctx.lineWidth=1.3;
+      ctx.beginPath();ctx.arc(cx,cy,size/2-2,0,Math.PI*2);ctx.stroke();
+    }else{
+      ctx.fillStyle='rgba(40,40,55,0.7)';
+      ctx.beginPath();ctx.arc(cx,cy,size/2,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(120,120,140,0.4)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(cx,cy,size/2,0,Math.PI*2);ctx.stroke();
+    }
+    // 文字
+    if(isOn){
+      ctx.shadowBlur=10+pulse*12;ctx.shadowColor=b.glow;
+      ctx.fillStyle=b.color;
+    }else{
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(160,160,175,0.55)';
+    }
+    ctx.font=`bold ${Math.floor(size*0.55)}px "Hiragino Sans","Yu Gothic",monospace`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(b.label,cx,cy+1);
+    ctx.restore();
+  });
+  ctx.textBaseline='alphabetic';
 }
 function drawAchievements(){
   achieveQueue=achieveQueue.filter(a=>{
@@ -1065,6 +1141,12 @@ function drawHUD(){
   ctx.textAlign='left';ctx.font='bold 9px monospace';
   if(isFull){const blink=Math.floor(G.frameN/8)%2===0;ctx.fillStyle=blink?'#ffcc00':'#fff';ctx.shadowBlur=10;ctx.shadowColor='#ff8800';ctx.fillText('商流拳！ [Space]',gx+5,gy+11);ctx.shadowBlur=0;}
   else{ctx.fillStyle='rgba(120,180,255,0.85)';ctx.fillText(`商流拳 ${Math.floor(gRatio*100)}%`,gx+5,gy+11);}
+  // ── HUD 5つの力ミニバッジ（敵HPバー下）──
+  {
+    const mini=16,mgap=3;
+    const totalW=POWER_BADGES.length*mini+(POWER_BADGES.length-1)*mgap;
+    drawPowerBadges(W-totalW-12,28,mini,{gap:mgap});
+  }
 }
 
 // ── ワードパネル ──
@@ -1150,27 +1232,92 @@ function drawWordPanel(){
   }
 }
 
-// ── 商流拳イントロテロップ ──
+// ── 商流拳イントロテロップ（学長ドアップ・画角変更）──
 function drawShohouIntro(){
   if(G.shohouIntroTimer<=0)return;
   const t=G.shohouIntroTimer;const maxT=90;
+  const age=maxT-t;
   const alpha=t>70?Math.min(1,(maxT-t)/20):t<20?t/20:1;
   ctx.save();ctx.globalAlpha=alpha;
-  // 暗転オーバーレイ
-  ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(0,0,W,H);
-  // 枠
-  ctx.shadowBlur=30;ctx.shadowColor='#ff6600';
-  ctx.strokeStyle='#ff8800';ctx.lineWidth=2;
-  ctx.beginPath();ctx.roundRect(W/2-260,H/2-48,520,96,12);ctx.stroke();
-  // テロップ
-  const pulse=Math.sin(G.frameN*0.25)*0.08+0.92;
-  ctx.scale(pulse,pulse);ctx.translate(W/2*(1-pulse),H/2*(1-pulse));
-  ctx.fillStyle='#ffffff';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
-  ctx.fillText('⚡ 商流拳ゲージMAX！',W/2,H/2-14);
-  ctx.shadowBlur=20;ctx.shadowColor='#ff4400';
-  ctx.fillStyle='#FFD700';ctx.font='bold 28px "Hiragino Sans","Yu Gothic",monospace';
-  ctx.fillText('商流拳モード突入！！',W/2,H/2+22);
-  ctx.shadowBlur=0;ctx.restore();
+  // ── 1. 暗転（強め）──
+  ctx.fillStyle='rgba(0,0,0,0.88)';ctx.fillRect(0,0,W,H);
+  // ── 2. 集中線（放射）──
+  const cx=W/2,cy=H/2+10;
+  const lineN=42;
+  ctx.save();
+  for(let i=0;i<lineN;i++){
+    const a=(i/lineN)*Math.PI*2+G.frameN*0.012;
+    const inR=110+Math.sin(G.frameN*0.08+i)*8;
+    const outR=520;
+    const hue=20+(i%5)*8;
+    ctx.strokeStyle=`hsla(${hue},100%,${55+Math.sin(G.frameN*0.1+i)*10}%,${0.55*alpha})`;
+    ctx.lineWidth=2.4+Math.sin(G.frameN*0.2+i)*1.2;
+    ctx.shadowBlur=14;ctx.shadowColor='#ff6600';
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(a)*inR,cy+Math.sin(a)*inR);
+    ctx.lineTo(cx+Math.cos(a)*outR,cy+Math.sin(a)*outR);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // ── 3. 学長ドアップ（中央に巨大に） ──
+  const zoomIn=Math.min(1,age/18);
+  const breathPulse=Math.sin(G.frameN*0.18)*0.04;
+  const scale=(3.6+breathPulse)*zoomIn+0.1;
+  ctx.save();
+  ctx.translate(cx,cy+78);
+  ctx.scale(scale,scale);
+  // オーラ（学長の周囲）
+  const auraGrad=ctx.createRadialGradient(0,-20,5,0,-20,90);
+  auraGrad.addColorStop(0,`rgba(255,220,80,${0.45*alpha})`);
+  auraGrad.addColorStop(0.5,`rgba(255,120,0,${0.32*alpha})`);
+  auraGrad.addColorStop(1,'rgba(255,80,0,0)');
+  ctx.fillStyle=auraGrad;
+  ctx.beginPath();ctx.arc(0,-20,90,0,Math.PI*2);ctx.fill();
+  // 学長本体（atkステートで気合演出）
+  ctx.shadowBlur=22;ctx.shadowColor='#ffcc00';
+  drawLion(0,0,age%30<18?'atk':'idle');
+  ctx.shadowBlur=0;
+  ctx.restore();
+  // ── 4. 黒帯（上下シネマスコープ）──
+  const barH=Math.min(56,age*4);
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,barH);
+  ctx.fillRect(0,H-barH,W,barH);
+  // ── 5. テロップ ──
+  const pulse=Math.sin(G.frameN*0.28)*0.06+0.94;
+  ctx.save();
+  ctx.translate(W/2,0);
+  ctx.scale(pulse,pulse);
+  ctx.textAlign='center';
+  // 上部キャプション
+  ctx.fillStyle='rgba(255,180,80,0.95)';
+  ctx.font='bold 11px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.shadowBlur=8;ctx.shadowColor='#ff6600';
+  ctx.fillText('⚡ 商流拳ゲージMAX ⚡',0,38);
+  ctx.shadowBlur=0;
+  // メイン文字（揺らぎ＋複数レイヤー）
+  for(let li=0;li<3;li++){
+    const ox=(Math.random()-0.5)*5*alpha,oy=(Math.random()-0.5)*5*alpha;
+    ctx.fillStyle=`rgba(255,${60+li*30},0,${0.35*alpha})`;
+    ctx.shadowBlur=24;ctx.shadowColor='#ff3300';
+    ctx.font='bold 34px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillText('商流拳モード突入！！',ox,H/2-72+oy);
+  }
+  // 本体
+  const grad=ctx.createLinearGradient(0,H/2-95,0,H/2-50);
+  grad.addColorStop(0,'#ffffff');grad.addColorStop(0.5,'#FFD700');grad.addColorStop(1,'#ff6600');
+  ctx.fillStyle=grad;
+  ctx.shadowBlur=20;ctx.shadowColor='#ffaa00';
+  ctx.fillText('商流拳モード突入！！',0,H/2-72);
+  ctx.shadowBlur=0;
+  // 下部サブテキスト
+  ctx.fillStyle='rgba(255,220,120,0.95)';
+  ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.shadowBlur=8;ctx.shadowColor='#ff6600';
+  ctx.fillText('── 学長の本気を見よ！ ──',0,H-44);
+  ctx.shadowBlur=0;
+  ctx.restore();
+  ctx.restore();
 }
 
 // ── 商流拳エフェクト（MAX演出）──
@@ -1589,6 +1736,16 @@ function drawTitle(){
   ctx.fillText(`BEST: ${hs.score}pts  MAX COMBO: ${hs.combo}`,W/2,H-38);
   const unlocked=getAchievements();
   ctx.fillStyle='rgba(130,130,165,0.5)';ctx.font='9px monospace';ctx.fillText(`実績: ${unlocked.length}/${ACHIEVEMENTS.length}`,W/2,H-24);
+  // ── 5つの力バッジ（タイトル右下）──
+  {
+    const badgeSize=26,gap=5;
+    const totalW=POWER_BADGES.length*badgeSize+(POWER_BADGES.length-1)*gap;
+    const bx=W-totalW-14,by=H-badgeSize-12;
+    // ラベル
+    ctx.fillStyle='rgba(220,220,240,0.55)';ctx.font='bold 9px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='right';
+    ctx.fillText('5つの力',W-14,by-4);
+    drawPowerBadges(bx,by,badgeSize,{gap});
+  }
   // 非公式バッジ（常時表示）
   ctx.save();
   ctx.fillStyle='rgba(255,215,0,0.18)';ctx.strokeStyle='rgba(255,215,0,0.55)';ctx.lineWidth=1.2;
@@ -1860,7 +2017,10 @@ function processWordComplete(word){
     dmg=Math.max(Math.floor(G.enemyMaxHp*0.62),G.enemyHp-1);
     G.isShohouMode=false;G.shohouWord=null;G.superGauge=0;G.superActive=0;
     stopShohouBGM();
-    zoomTargetScale=1.65;zoomCX=540;zoomCY=200;setTimeout(()=>zoomTargetScale=1.0,1600);
+    // 商流拳発動：まず学長にドアップ、その後敵へカメラパン
+    zoomTargetScale=2.2;zoomCX=178;zoomCY=210;
+    setTimeout(()=>{zoomTargetScale=1.6;zoomCX=540;zoomCY=200;},520);
+    setTimeout(()=>zoomTargetScale=1.0,1800);
     shake(34);flash('#ff8800',1.0);superBurst(540,200);
     hpLerpSpeed=0.45;hpBarFlash=30;
   }
