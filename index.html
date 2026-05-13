@@ -850,18 +850,33 @@ function addProj(x,y,color,type){
   type=type||'big';
   if(projs.length>40)return;
   const tx=540+(Math.random()-0.5)*30, ty=200+(Math.random()-0.5)*20;
-  // コンボでサイズUP（コンボ20で1.5倍）
-  const comboBoost=1+Math.min(G.combo,20)*0.025;
-  let size=(type==='critical'?44:type==='big'?28:16)*comboBoost;
+  // ── サイズ計算：コンボ × 打鍵速度 × WPM ──
+  // コンボでサイズUP（コンボ50で約2.75倍）
+  const comboBoost=1+Math.min(G.combo,50)*0.035;
+  // 打鍵間隔ブースト（連続高速打鍵で巨大化）
+  const now=performance.now();
+  const interval=G.lastKeyStrokeAt?Math.max(0,now-G.lastKeyStrokeAt):999;
+  let speedBoost=1.0;
+  if(interval<80) speedBoost=1.65;       // 神速 (WPM150+)
+  else if(interval<140) speedBoost=1.40; // 超高速 (WPM85+)
+  else if(interval<220) speedBoost=1.20; // 高速
+  else if(interval<350) speedBoost=1.08; // 通常
+  // WPMブースト（最大1.3倍 at WPM120）
+  const wpmBoost=1+Math.min(G.currentWpm||0,120)*0.0025;
+  const baseSize=type==='critical'?44:type==='big'?28:16;
+  let size=baseSize*comboBoost*speedBoost*wpmBoost;
+  // サイズ上限（画面を埋め尽くさない）
+  const maxSize=type==='critical'?80:type==='big'?60:42;
+  size=Math.min(size,maxSize);
   // コンボ15以上：稀にsmallが「巨大金塊」化（15%確率）
   if(type==='small'&&G.combo>=15&&Math.random()<0.15){
-    size=34;type='goldbar';color='#ffaa00';
+    size=Math.min(maxSize,size*1.35);type='goldbar';color='#ffaa00';
   }
   // 🍠 たまに焼き芋・じゃがいもを投げる（学長の遊び心・smallのみ）
   if(type==='small'&&Math.random()<0.04){
     const isYaki=Math.random()<0.5;
     type=isYaki?'yakiimo':'jagaimo';
-    size=isYaki?22:20;
+    size=Math.max(size,isYaki?22:20);
     color=isYaki?'#d97a2a':'#c4a878';
   }
   const speed=type==='critical'?14:type==='big'?18:30;
@@ -1070,6 +1085,16 @@ function onKeyHit(){
   charPopMap[G.typedIndex-1]=G.frameN;
   panelFlashTimer=8;
   comboPulseTimer=10;
+}
+// 打鍵速度に応じたダメージ倍率（タグ付き）
+function calcSpeedDmgMul(){
+  const now=performance.now();
+  const interval=G.lastKeyStrokeAt?now-G.lastKeyStrokeAt:999;
+  if(interval<80) return {mul:2.4, tag:'⚡神速', col:'#ff66ff'};
+  if(interval<140) return {mul:1.8, tag:'🔥超速', col:'#ff8800'};
+  if(interval<220) return {mul:1.4, tag:'✨高速', col:'#FFD700'};
+  if(interval<350) return {mul:1.15,tag:'',     col:'#FFD700'};
+  return {mul:1.0, tag:'', col:'#FFD700'};
 }
 function shake(p){shakePow=Math.max(shakePow,p);}
 function flash(c,a){flashC=c;flashA=a;}
@@ -1348,6 +1373,7 @@ let G={
   wordMissCount:0,perfectStreak:0,perfectTotal:0,
   rushActive:false,rushAnnouncedStage:-1,rushTeloperTimer:0,
   miracleRevivalUsed:false,
+  lastKeyStrokeAt:0,
 };
 
 // ── ステージ開始 ──
@@ -2456,8 +2482,8 @@ const LION_HURT_LINES=[
   '諦めたらそこで終わりやで！',
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.4';
-const GAME_LAST_UPDATE='2026-05-14 01:00';
+const GAME_VERSION='v2.5';
+const GAME_LAST_UPDATE='2026-05-14 01:20';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
@@ -3358,13 +3384,17 @@ function handleKey(key,code){
   if(key===expected){
     G.typedIndex++;
     SFX.correct(G.typedIndex-1,word.word.length);
-    // 1キーごとに実ダメージ（小）
-    const keyDmg=Math.max(1,Math.floor(word.dmg/word.word.length));
+    // 1キーごとに実ダメージ（速度ブースト適用）
+    const baseDmg=Math.max(1,Math.floor(word.dmg/word.word.length));
+    const sb=calcSpeedDmgMul();
+    const keyDmg=Math.max(1,Math.floor(baseDmg*sb.mul));
     G.enemyHp=Math.max(0,G.enemyHp-keyDmg);
     G.enemyHurt=Math.max(G.enemyHurt,5);
     enemyTypingShake=3;
-    addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
+    addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,sb.col,sb.mul>=1.8);
+    if(sb.tag)addDmgNum(rand(490,560),155,sb.tag,sb.col,false);
     onKeyHit();
+    G.lastKeyStrokeAt=performance.now();
     // 毎キー：学長が小判を1枚投擲
     addProj(220,200,'#FFD700','small');
     if(G.typedIndex>=word.word.length){
@@ -3535,12 +3565,16 @@ function processFlickChar(ch){
   if(ch===expected){
     G.flickTyped+=ch;
     SFX.correct(G.flickTyped.length-1,word.word.length);
-    const keyDmg=Math.max(1,Math.floor(word.dmg/word.word.length));
+    const baseDmg=Math.max(1,Math.floor(word.dmg/word.word.length));
+    const sb=calcSpeedDmgMul();
+    const keyDmg=Math.max(1,Math.floor(baseDmg*sb.mul));
     G.enemyHp=Math.max(0,G.enemyHp-keyDmg);
     G.enemyHurt=Math.max(G.enemyHurt,5);
     enemyTypingShake=3;
-    addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
+    addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,sb.col,sb.mul>=1.8);
+    if(sb.tag)addDmgNum(rand(490,560),155,sb.tag,sb.col,false);
     onKeyHit();
+    G.lastKeyStrokeAt=performance.now();
     addProj(220,200,'#FFD700','small');
     if(G.flickTyped===word.word){
       G.typedIndex=word.word.length;
