@@ -269,6 +269,7 @@ const ACHIEVEMENTS=[
   {id:'tousi',name:'長期投資家',desc:'Hardで投資継続を選んだ'},
   {id:'samurai',name:'武士道',desc:'Hardで継続せず潔く敗北'},
   {id:'perfect5',name:'パーフェクト5連',desc:'5連続でPERFECT WORD達成'},
+  {id:'miracle',name:'奇跡の復活',desc:'倒れる寸前で立ち上がった！'},
 ];
 // ── 5つの力バッジ（貯・稼・増・守・使）──
 const POWER_BADGES=[
@@ -724,7 +725,7 @@ const DIFFICULTY_DEFS={
     title:'リベの民',titleCol:'#c0c0c0',
     msg1:'ええやん！もう立派なリベの民や〜',
     msg2:'貯める・稼ぐ・増やす・守る・使う、5つの力を磨いてこな！'},
-  hard:  {label:'HARD',  hpMul:1.5,atkMul:1.5,intervalMul:0.65,playerHp:60,col:'#ff4444',
+  hard:  {label:'HARD',  hpMul:1.45,atkMul:1.30,intervalMul:0.75,playerHp:75,col:'#ff4444',
     title:'経済的自由人 〜FIRE達成〜',titleCol:'#FFD700',
     msg1:'おめでとう！本物の経済的自由人や！',
     msg2:'自由な人生は自分で設計するもんやで〜。借金なんかすんじゃねえ！'},
@@ -1346,6 +1347,7 @@ let G={
   continuesUsed:0,continueCost:0,
   wordMissCount:0,perfectStreak:0,perfectTotal:0,
   rushActive:false,rushAnnouncedStage:-1,rushTeloperTimer:0,
+  miracleRevivalUsed:false,
 };
 
 // ── ステージ開始 ──
@@ -1358,6 +1360,7 @@ function startStage(idx){
   G.superGauge=0;G.superActive=0;G.superFlash=0;G.isShohouMode=false;G.shohouWord=null;G.shohouIntroTimer=0;
   G.wpmHistory=[];G.currentWpm=0;G.stageNoDamage=true;G.shohouUsed=false;
   G.rushActive=false;G.rushAnnouncedStage=-1;G.rushTeloperTimer=0;
+  G.miracleRevivalUsed=false; // ステージごとに1回チャンス
   const [lo,hi]=st.wordLevel;
   const db=(inputMode==='smartphone'&&idx===0)?WORD_DB_KANA:WORD_DB;
   const pool=[...db].slice(lo,Math.min(hi+1,db.length)).sort(()=>Math.random()-0.5);
@@ -2333,15 +2336,16 @@ function drawDisclaimer(){
   ctx.fillText('⚠️  非公式ファンゲーム  ⚠️',W/2,28);
   // 本文
   const lines=[
-    {t:'このゲームについて',s:13,c:'#FFD700',b:true,y:76},
-    {t:'本作はリベシティ・両学長を題材にした',s:11,c:'#ccccff',b:false,y:100},
-    {t:'二次創作による非公式ファンゲームです。',s:11,c:'#ffee88',b:true,y:116},
-    {t:'リベシティ運営・両学長による公式作品では',s:11,c:'#ccccff',b:false,y:134},
-    {t:'ありません。公認・監修もされていません。',s:11,c:'#ccccff',b:false,y:150},
-    {t:'ガイドライン準拠',s:13,c:'#FFD700',b:true,y:174},
-    {t:'リベシティ著作物ガイドラインに基づき、',s:11,c:'#ccccff',b:false,y:193},
-    {t:'非営利・無料で公開しています。',s:11,c:'#ccccff',b:false,y:208},
-    {t:'© リベラルアーツ大学 の著作物を含みます。',s:10,c:'rgba(180,180,200,0.7)',b:false,y:222},
+    {t:'このゲームについて',s:13,c:'#FFD700',b:true,y:64},
+    {t:'本作はリベシティ・両学長を題材にした',s:11,c:'#ccccff',b:false,y:84},
+    {t:'二次創作による非公式ファンゲームです。',s:11,c:'#ffee88',b:true,y:100},
+    {t:'公式作品ではなく、公認・監修もされていません。',s:10,c:'#ccccff',b:false,y:116},
+    {t:'⚠ 外部公開・SNS拡散はお控えください ⚠',s:12,c:'#ff8866',b:true,y:142},
+    {t:'本作は二次創作ファンゲームのため、',s:10,c:'#ffaaaa',b:false,y:160},
+    {t:'SNS・ブログ・YouTube等で広く拡散しないでください。',s:10,c:'#ffaaaa',b:false,y:174},
+    {t:'個人プレイ・身近な友人内のみで楽しんでください。',s:10,c:'#ffaaaa',b:false,y:188},
+    {t:'リベシティ著作物ガイドラインに基づき非営利・無料で運用。',s:10,c:'rgba(180,180,200,0.85)',b:false,y:210},
+    {t:'© リベラルアーツ大学 の著作物を含みます。',s:9,c:'rgba(180,180,200,0.7)',b:false,y:224},
   ];
   lines.forEach(l=>{
     ctx.font=`${l.b?'bold ':''} ${l.s}px "Hiragino Sans","Yu Gothic",monospace`;
@@ -2452,8 +2456,8 @@ const LION_HURT_LINES=[
   '諦めたらそこで終わりやで！',
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.3';
-const GAME_LAST_UPDATE='2026-05-14 00:30';
+const GAME_VERSION='v2.4';
+const GAME_LAST_UPDATE='2026-05-14 01:00';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
@@ -2505,13 +2509,26 @@ const CONTINUE_CONFIG={
     theme:'投資',themeIcon:'📈',themeCol:'#8855ff',themeGlow:'#5522dd',
     quote:'長期・積立・分散投資が真の力！',quoteAuthor:'両学長',
     sub:'痛みを学びに変えろ、投資家として！',
-    costRate:0.50,minCost:150,maxContinues:2,
+    costRate:0.40,minCost:120,maxContinues:10, // 10回まで・コストも控えめ
     hpRestore:0.85,btnLabel:'📈 投資して継続',
     achievement:'tousi',
     declineAch:'samurai',
     speakText:'インデックス長期積立や！',
   },
 };
+// ── 🎰 Hardモード10ギミック（continuesUsed順に切り替わる）──
+const HARD_GIMMICKS=[
+  {name:'インデックス投資', icon:'📈',col:'#8855ff',quote:'長期・積立・分散投資が真の力！',sub:'まずはS&P500から始めよ',hpMul:1.0,costMul:1.0,speak:'インデックス長期積立や！'},
+  {name:'副業の力',         icon:'💼',col:'#ff9900',quote:'副業で収入の柱を増やせ！',sub:'稼ぐ力が君を救う',hpMul:1.05,costMul:0.95,speak:'副業で稼げや！'},
+  {name:'自己投資',         icon:'📚',col:'#00ccff',quote:'自己投資が最強の投資や！',sub:'学べば学ぶほど強くなる',hpMul:1.10,costMul:0.90,speak:'自己投資が最強や！'},
+  {name:'節約の力',         icon:'💰',col:'#88ff44',quote:'貯める力で固定費を削れ！',sub:'支出最適化で生存力UP',hpMul:1.05,costMul:0.85,speak:'固定費削減や！'},
+  {name:'複利の魔法',       icon:'🔄',col:'#FFD700',quote:'複利は人類最大の発明や！',sub:'時間を味方につけろ',hpMul:1.15,costMul:0.85,speak:'複利の力や！'},
+  {name:'分散投資',         icon:'🌐',col:'#44ddff',quote:'卵を一つの籠に盛るな！',sub:'リスクを分散して耐えろ',hpMul:1.10,costMul:0.80,speak:'分散投資せよ！'},
+  {name:'キャッシュフロー', icon:'💵',col:'#aaff77',quote:'お金の流れを見極めろ！',sub:'入る>出る を死守せよ',hpMul:1.20,costMul:0.75,speak:'キャッシュフロー！'},
+  {name:'不労所得',         icon:'🛌',col:'#ffaa66',quote:'寝てても入る収入を作れ！',sub:'仕組み化が君を救う',hpMul:1.25,costMul:0.70,speak:'不労所得や！'},
+  {name:'FIRE準備金',       icon:'🔥',col:'#ff66aa',quote:'FIRE準備金で生き残れ！',sub:'最後の砦・温存資金',hpMul:1.30,costMul:0.60,speak:'FIRE準備金や！'},
+  {name:'両学長の極意',     icon:'🦁',col:'#FFD700',quote:'今日が人生で一番若い日！',sub:'最後の切り札・必ず立ち上がれ',hpMul:1.50,costMul:0.40,speak:'今日が人生で一番若い日や！'},
+];
 function pickBookQuote(){
   // クリア時のスコア＋ステージで安定的に選定
   const seed=(G.score+G.stageIdx*101+G.comboMax*7)%BOOK_QUOTES.length;
@@ -2903,14 +2920,16 @@ function drawGameClear(){
   }
 }
 
-// ── コンティニュー画面（3難易度対応・テーマギミック） ──
+// ── コンティニュー画面（3難易度対応・Hardは10ギミック）──
 function drawContinuePrompt(){
   const t=G.frameN;
-  const conf=CONTINUE_CONFIG[selectedDiff]||CONTINUE_CONFIG.easy;
+  const conf=getActiveContinueProfile();
   // 背景：暗転＋テーマカラーのオーラ
   ctx.fillStyle='rgba(0,0,0,0.86)';ctx.fillRect(0,0,W,H);
   // 集中線（テーマカラー）
-  const themeRGB=conf.theme==='副業'?'255,150,50':conf.theme==='投資'?'140,90,255':'255,40,40';
+  // themeColのhex→rgb変換
+  function hexToRgb(h){const m=h.replace('#','').match(/.{1,2}/g);return m?m.map(v=>parseInt(v,16)).join(','):'255,40,40';}
+  const themeRGB=hexToRgb(conf.themeCol);
   for(let i=0;i<30;i++){
     const a=(i/30)*Math.PI*2+t*0.01;
     const inR=140,outR=480;
@@ -2997,8 +3016,24 @@ function drawContinuePrompt(){
   ctx.fillStyle='rgba(180,255,200,0.85)';
   ctx.fillText('（こっちが学長のおすすめ）',bx2+btnW/2,btnY+35);
 }
-function applyContinue(){
+function getActiveContinueProfile(){
   const conf=CONTINUE_CONFIG[selectedDiff]||CONTINUE_CONFIG.easy;
+  if(selectedDiff==='hard'){
+    const g=HARD_GIMMICKS[Math.min(G.continuesUsed,HARD_GIMMICKS.length-1)];
+    return {...conf,
+      theme:g.name,themeIcon:g.icon,themeCol:g.col,themeGlow:g.col,
+      quote:g.quote,sub:g.sub,
+      hpRestore:Math.min(1.0,conf.hpRestore*g.hpMul),
+      costRate:conf.costRate*g.costMul,
+      btnLabel:`${g.icon} ${g.name}で継続`,
+      speakText:g.speak,
+      _gimmick:g,
+    };
+  }
+  return conf;
+}
+function applyContinue(){
+  const conf=getActiveContinueProfile();
   G.score=Math.max(0,G.score-G.continueCost);
   G.continuesUsed++;
   G.playerHp=Math.floor(G.playerMaxHp*conf.hpRestore);
@@ -3010,6 +3045,13 @@ function applyContinue(){
   flash(conf.themeCol,0.7);playerDamageVignette=30;
   unlockAchievement(conf.achievement);
   if(SFX&&SFX.speak)SFX.speak(conf.speakText,{rate:1.05,pitch:0.8,volume:0.85});
+  // 10回目（最後の切り札）使用時の特別演出
+  if(selectedDiff==='hard'&&G.continuesUsed===10){
+    setTimeout(()=>{
+      flash('#FFD700',0.9);
+      for(let i=0;i<24;i++)setTimeout(()=>coinBurst(rand(W*0.2,W*0.8),rand(H*0.2,H*0.7)),i*40);
+    },200);
+  }
 }
 function declineContinue(){
   const conf=CONTINUE_CONFIG[selectedDiff]||CONTINUE_CONFIG.easy;
@@ -3097,6 +3139,22 @@ function loop(){
         shake(14);SFX.enemyAtk();wrongBurst(178,202);
         playerDamageVignette=42;addDmgNum(178,168,'被弾！','#ff3366',true);
         if(G.playerHp<=0){
+          // 🌟 奇跡の復活演出（稀に発火・全難易度）
+          // 条件: HPが0になった瞬間で、まだmiracleRevivalを使ってない、12%の確率
+          if(!G.miracleRevivalUsed&&Math.random()<0.12){
+            G.miracleRevivalUsed=true;
+            G.playerHp=Math.floor(G.playerMaxHp*0.5);
+            G.playerHurt=0;
+            G.atkTimer=Math.max(G.atkTimer,240);
+            flash('#FFD700',1.0);
+            if(SFX&&SFX.koCry)SFX.koCry(0);
+            if(SFX&&SFX.speak)SFX.speak('まだまだいける！立ち上がれ！',{rate:1.1,pitch:1.0,volume:1.0});
+            addDmgNum(W/2,H/2-50,'⭐ 奇跡の復活！','#FFD700',true);
+            setTimeout(()=>addDmgNum(W/2,H/2-20,'今日が人生で一番若い日や！','#ffee88',false),200);
+            for(let i=0;i<20;i++)setTimeout(()=>coinBurst(rand(W*0.2,W*0.8),rand(H*0.2,H*0.6)),i*60);
+            unlockAchievement('miracle');
+            return; // game-over分岐をスキップ
+          }
           // 難易度別Continue設定
           const conf=CONTINUE_CONFIG[selectedDiff];
           let continueCost=Math.max(conf.minCost,Math.floor(G.score*conf.costRate));
@@ -3156,7 +3214,14 @@ function loop(){
   else if(G.phase==='stageintro'){
     drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawNonOfficialBadge();
     G.stageIntroTimer--;
-    if(G.stageIntroTimer<=0){G.phase='fight';}
+    if(G.stageIntroTimer<=0){
+      G.phase='fight';
+      // 戦闘開始時の「ファイト！」掛け声＋画面フラッシュ
+      if(SFX&&SFX.speak)SFX.speak('ファイト！',{rate:1.4,pitch:1.4,volume:0.95});
+      if(SFX&&SFX.fight)SFX.fight();
+      flash('#FFD700',0.5);
+      addDmgNum(W/2,H/2-30,'⚔ FIGHT！','#FFD700',true);
+    }
     else{
       const t=G.stageIntroTimer;const alpha=t>120?Math.min(1,(150-t)/30):t<40?t/40:1;
       const st=STAGES[G.stageIdx];
