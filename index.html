@@ -842,10 +842,12 @@ function lerp(a,b,t){return a+(b-a)*t;}
 // type: 'small' (キー打鍵時) / 'big' (ワード完了時) / 'critical' (商流拳大判)
 function addProj(x,y,color,type){
   type=type||'big';
+  // パフォーマンス制限：projs総数を制限
+  if(projs.length>40)return;
   // 山なり軌道用：tx/tyへ放物線で飛ぶ。ピーク高はsizeに比例
   const tx=540+(Math.random()-0.5)*30, ty=200+(Math.random()-0.5)*20;
   const size=type==='critical'?44:type==='big'?28:16;  // ぐっと大型化
-  const speed=type==='critical'?14:type==='big'?18:24;
+  const speed=type==='critical'?14:type==='big'?18:30;
   const totalDist=Math.sqrt((tx-x)**2+(ty-y)**2);
   const flightFrames=Math.max(8,totalDist/speed);
   projs.push({
@@ -858,34 +860,31 @@ function addProj(x,y,color,type){
   });
 }
 function drawKoban(x,y,r,rot,color){
-  // 小判（楕円）を3D風に回転させる
+  // 小判（楕円）を3D風に回転させる（軽量版・shadowBlur削減）
+  const sx=Math.abs(Math.cos(rot));
+  const scaleX=Math.max(0.25,sx);
   ctx.save();
   ctx.translate(x,y);
-  ctx.rotate(rot*0.15); // 平面回転は控えめ
-  // y軸回転を擬似的にscale(cos(rot),1)で表現
-  const sx=Math.abs(Math.cos(rot));
-  ctx.scale(Math.max(0.2,sx),1);
-  // 影
-  ctx.shadowBlur=18;ctx.shadowColor=color;
-  // 外輪（オレンジ→金グラデ）
-  const g=ctx.createRadialGradient(0,-r*0.3,r*0.1,0,0,r);
-  g.addColorStop(0,'#fff8c0');
-  g.addColorStop(0.4,color);
-  g.addColorStop(1,'#a87000');
-  ctx.fillStyle=g;
+  ctx.rotate(rot*0.15);
+  ctx.scale(scaleX,1);
+  // shadowBlurはbigとcriticalのみ
+  const heavy=r>=24;
+  if(heavy){ctx.shadowBlur=12;ctx.shadowColor=color;}
+  // 単色塗り（グラデーション省略・速い）
+  ctx.fillStyle=color;
   ctx.beginPath();ctx.ellipse(0,0,r,r*0.62,0,0,Math.PI*2);ctx.fill();
+  if(heavy)ctx.shadowBlur=0;
   // 縁取り
-  ctx.shadowBlur=0;
-  ctx.strokeStyle='rgba(180,120,0,0.9)';ctx.lineWidth=Math.max(1,r*0.08);
+  ctx.strokeStyle='rgba(140,90,0,0.85)';ctx.lineWidth=Math.max(1,r*0.08);
   ctx.beginPath();ctx.ellipse(0,0,r,r*0.62,0,0,Math.PI*2);ctx.stroke();
-  // 「金」または「両」の文字（裏面はモノグラム）
-  if(sx>0.55){
+  // 「金」の文字（heavy時のみ）
+  if(heavy&&sx>0.55){
     ctx.fillStyle='#5a3a00';
     ctx.font=`bold ${Math.floor(r*0.85)}px "Hiragino Sans","Yu Gothic",monospace`;
     ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText('金',0,1);
+    ctx.textBaseline='alphabetic';
   }
-  ctx.textBaseline='alphabetic';
   ctx.restore();
 }
 function updateDrawProjs(){
@@ -913,15 +912,17 @@ function updateDrawProjs(){
       }
       return false;
     }
-    // 軌跡パーティクル（ティルテール）
+    // 軌跡パーティクル（ティルテール・パフォーマンス考慮）
     if(p.type==='small'){
-      if(p.t%2===0)addPt(p.x,p.y,(Math.random()-0.5)*0.6,(Math.random()-0.5)*0.6,12,p.color,2);
+      // smallは軌跡を完全に省略（影だけで存在感は十分）
+    }else if(p.type==='big'){
+      if(p.t%3===0)addPt(p.x+(Math.random()-0.5)*4,p.y+(Math.random()-0.5)*4,0,0,10,p.color,3);
     }else{
-      addPt(p.x+(Math.random()-0.5)*4,p.y+(Math.random()-0.5)*4,(Math.random()-0.5)*0.5,(Math.random()-0.5)*0.5,12,p.color,3);
-      // 大判は虹色のキラめき
-      if(p.type==='critical'&&p.t%3===0){
+      // criticalのみ豪華に
+      if(p.t%2===0)addPt(p.x,p.y,0,0,12,p.color,3);
+      if(p.t%4===0){
         const hue=(p.t*15)%360;
-        addStar(p.x,p.y,(Math.random()-0.5)*2,(Math.random()-0.5)*2,20,`hsl(${hue},100%,65%)`,4);
+        addStar(p.x,p.y,0,0,18,`hsl(${hue},100%,65%)`,4);
       }
     }
     // 描画
@@ -1056,6 +1057,32 @@ function drawEnemyChargeWarn(){
   ctx.fillText('⚠ 敵が攻撃してくる！',W-14,76);
   ctx.shadowBlur=0;
   ctx.restore();
+}
+// ── タイピング波紋（正解1キーごとに発火）──
+let ripples=[];
+function addRipple(x,y,color){
+  ripples.push({x,y,color:color||'#FFFFFF',timer:24,maxTimer:24});
+}
+function drawRipples(){
+  ripples=ripples.filter(r=>{
+    r.timer--;
+    const t=r.timer,mt=r.maxTimer;
+    const age=(mt-t)/mt; // 0→1
+    const radius=30+age*60; // 30→90
+    const alpha=Math.max(0,1-age);
+    ctx.save();ctx.globalAlpha=alpha*0.85;
+    ctx.strokeStyle=r.color;ctx.lineWidth=2.2*(1-age*0.5);
+    ctx.shadowBlur=8;ctx.shadowColor=r.color;
+    ctx.beginPath();ctx.arc(r.x,r.y,radius,0,Math.PI*2);ctx.stroke();
+    // 内側にもう1本（ステージカラー想定の薄いリング）
+    if(age<0.5){
+      ctx.globalAlpha=alpha*0.4;
+      ctx.lineWidth=1.3;
+      ctx.beginPath();ctx.arc(r.x,r.y,radius*0.7,0,Math.PI*2);ctx.stroke();
+    }
+    ctx.shadowBlur=0;ctx.restore();
+    return r.timer>0;
+  });
 }
 // ── インパクトライン（放射状の打撃線）──
 let impactLines=[];
@@ -1591,12 +1618,37 @@ function drawWordPanel(){
   const word=G.isShohouMode?G.shohouWord:G.currentWord;
   if(!word)return;
   const pw=460,ph=G.isShohouMode?130:110,px=W/2-pw/2,py=H-138-(G.isShohouMode?15:0);
-  ctx.fillStyle='rgba(0,0,20,0.90)';
+  // ── グラスモーフィズム（半透明＋光沢ハイライト＋ボケ枠）──
+  ctx.save();
+  // 多層背景：奥のぼかしグラデ
+  const bgGrad=ctx.createLinearGradient(0,py,0,py+ph);
+  if(G.isShohouMode){
+    bgGrad.addColorStop(0,'rgba(40,15,0,0.78)');
+    bgGrad.addColorStop(1,'rgba(20,5,0,0.92)');
+  }else{
+    bgGrad.addColorStop(0,'rgba(255,255,255,0.10)');
+    bgGrad.addColorStop(0.45,'rgba(20,30,70,0.78)');
+    bgGrad.addColorStop(1,'rgba(0,0,20,0.92)');
+  }
+  ctx.fillStyle=bgGrad;
   ctx.shadowBlur=G.isShohouMode?14:10;
-  ctx.shadowColor=G.isShohouMode?'#ff6600':'#0033aa';
-  ctx.beginPath();ctx.roundRect(px,py,pw,ph,12);ctx.fill();
-  ctx.strokeStyle=G.isShohouMode?'rgba(255,120,0,0.8)':'rgba(100,150,255,0.35)';
-  ctx.lineWidth=G.isShohouMode?2:1.5;ctx.beginPath();ctx.roundRect(px,py,pw,ph,12);ctx.stroke();ctx.shadowBlur=0;
+  ctx.shadowColor=G.isShohouMode?'#ff6600':'#0044bb';
+  ctx.beginPath();ctx.roundRect(px,py,pw,ph,14);ctx.fill();
+  ctx.shadowBlur=0;
+  // 上端ハイライト（ガラスの光沢）
+  const hiGrad=ctx.createLinearGradient(0,py,0,py+22);
+  hiGrad.addColorStop(0,'rgba(255,255,255,0.22)');
+  hiGrad.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=hiGrad;
+  ctx.beginPath();ctx.roundRect(px+2,py+2,pw-4,22,12);ctx.fill();
+  // 縁取り（2重）
+  ctx.strokeStyle=G.isShohouMode?'rgba(255,120,0,0.85)':'rgba(160,200,255,0.55)';
+  ctx.lineWidth=G.isShohouMode?2:1.5;
+  ctx.beginPath();ctx.roundRect(px,py,pw,ph,14);ctx.stroke();
+  // 内側薄ボーダー
+  ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.roundRect(px+1,py+1,pw-2,ph-2,13);ctx.stroke();
+  ctx.restore();
   if(G.isShohouMode){
     const blink=Math.floor(G.frameN/18)%2===0;
     ctx.fillStyle='rgba(0,0,0,0.7)';ctx.beginPath();ctx.roundRect(px,py-36,pw,32,8);ctx.fill();
@@ -2649,7 +2701,7 @@ function loop(){
       const targetPitch=G.combo>=15?1.2:G.combo>=10?1.12:G.combo>=5?1.06:1.0;
       setBGMPitch(targetPitch);
     }
-    updatePts();drawBG();drawPts();updateDrawProjs();drawDmgNums();
+    updatePts();drawBG();drawPts();updateDrawProjs();drawRipples();drawDmgNums();
     if(G.enemyKoTimer>0)G.enemyKoTimer--;
     // プレイヤー：ノックバックX＋被ダメフィルター
     const hurtX=G.playerHurt>0?Math.sin(G.playerHurt*0.5)*-14:0;
@@ -2817,7 +2869,7 @@ function handleKey(key,code){
     G.enemyHurt=Math.max(G.enemyHurt,5);
     enemyTypingShake=3;
     addDmgNum(rand(510,575),rand(175,240),`-${keyDmg}`,'#FFD700',false);
-    // 毎キー：学長が小判を1枚投擲
+    // 毎キー：学長が小判を1枚投擲（波紋は重いので削除）
     addProj(220,200,'#FFD700','small');
     if(G.typedIndex>=word.word.length){
       processWordComplete(word);
