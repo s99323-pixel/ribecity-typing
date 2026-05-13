@@ -215,6 +215,8 @@ const ACHIEVEMENTS=[
   {id:'stage5',name:'最終決戦',desc:'ステージ5に到達'},
   {id:'badgeall',name:'5つの力 全開',desc:'5つの力バッジを全て点灯！'},
   {id:'daily',name:'デイリー達成',desc:'今日のチャレンジを達成！'},
+  {id:'shakkin',name:'借金王',desc:'継続のためコインを借金…'},
+  {id:'nodebt',name:'潔さの美徳',desc:'借金せず潔く諦めた！'},
 ];
 // ── 5つの力バッジ（貯・稼・増・守・使）──
 const POWER_BADGES=[
@@ -945,6 +947,7 @@ let G={
   prevPhase:'fight',resumeCountdown:0,
   stageNoDamage:true,shohouUsed:false,
   screenFlashTimer:0,
+  continuesUsed:0,continueCost:0,
 };
 
 // ── ステージ開始 ──
@@ -2072,6 +2075,114 @@ function drawGameClear(){
   if(Math.floor(G.frameN/30)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter でタイトルへ ]',W/2,H/2+90);}
 }
 
+// ── Easyモード・コンティニュー画面 ──
+function drawContinuePrompt(){
+  const t=G.frameN;
+  // 背景：暗転＋赤いオーラ
+  ctx.fillStyle='rgba(0,0,0,0.86)';ctx.fillRect(0,0,W,H);
+  // 集中線（緊張感）
+  for(let i=0;i<30;i++){
+    const a=(i/30)*Math.PI*2+t*0.01;
+    const inR=140,outR=480;
+    ctx.strokeStyle=`rgba(255,${40+Math.sin(t*0.1+i)*30},40,${0.25+Math.sin(t*0.08+i)*0.1})`;
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(W/2+Math.cos(a)*inR,H/2+Math.sin(a)*inR);
+    ctx.lineTo(W/2+Math.cos(a)*outR,H/2+Math.sin(a)*outR);
+    ctx.stroke();
+  }
+  // 学長ドアップ（説教モード）
+  const pulse=Math.sin(t*0.1)*0.04+1;
+  ctx.save();
+  ctx.translate(W/2,H/2+10);
+  ctx.scale(3.0*pulse,3.0*pulse);
+  // 怒りオーラ
+  const aura=ctx.createRadialGradient(0,-20,5,0,-20,90);
+  aura.addColorStop(0,'rgba(255,80,40,0.5)');
+  aura.addColorStop(1,'rgba(180,20,0,0)');
+  ctx.fillStyle=aura;
+  ctx.beginPath();ctx.arc(0,-20,80,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=18;ctx.shadowColor='#ff4400';
+  drawLion(0,0,'idle');
+  ctx.shadowBlur=0;
+  ctx.restore();
+  // 大名言「借金なんかするんじゃねぇ！」
+  ctx.textAlign='center';
+  const quoteY=84;
+  const quoteScale=1+Math.sin(t*0.18)*0.04;
+  ctx.save();
+  ctx.translate(W/2,quoteY);
+  ctx.scale(quoteScale,quoteScale);
+  // 影レイヤー（揺らぎ）
+  for(let li=0;li<3;li++){
+    const ox=(Math.random()-0.5)*6,oy=(Math.random()-0.5)*6;
+    ctx.fillStyle=`rgba(255,${40+li*30},0,0.4)`;
+    ctx.shadowBlur=24;ctx.shadowColor='#ff2200';
+    ctx.font='bold 28px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillText('借金なんかするんじゃねぇ！',ox,oy);
+  }
+  // 本体
+  const grad=ctx.createLinearGradient(0,-20,0,20);
+  grad.addColorStop(0,'#ffffff');
+  grad.addColorStop(0.5,'#FFD700');
+  grad.addColorStop(1,'#ff4400');
+  ctx.fillStyle=grad;
+  ctx.shadowBlur=20;ctx.shadowColor='#ffaa00';
+  ctx.fillText('借金なんかするんじゃねぇ！',0,0);
+  ctx.shadowBlur=0;
+  ctx.restore();
+  // サブテキスト
+  ctx.fillStyle='rgba(255,200,80,0.85)';
+  ctx.font='bold 12px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText('── 学長より ──',W/2,quoteY+30);
+  // 状況説明
+  ctx.fillStyle='#fff';
+  ctx.font='bold 14px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText('💀 倒れたが、まだ立ち上がれる…！',W/2,H-130);
+  // ボタン2つ：継続 / 諦める
+  const btnW=240,btnH=44,gap=24;
+  const totalBtnW=btnW*2+gap;
+  const btnY=H-90;
+  // 継続ボタン（左・借金パターン）
+  const bx1=W/2-totalBtnW/2;
+  const blink=Math.floor(t/15)%2===0;
+  ctx.fillStyle=blink?'rgba(255,60,90,0.95)':'rgba(140,30,40,0.95)';
+  ctx.strokeStyle='#ff4466';ctx.lineWidth=2.2;ctx.shadowBlur=blink?20:8;ctx.shadowColor='#ff3366';
+  ctx.beginPath();ctx.roundRect(bx1,btnY,btnW,btnH,10);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle='#fff';ctx.font='bold 14px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(`💸 借金して継続 [Y]`,bx1+btnW/2,btnY+19);
+  ctx.font='bold 11px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillStyle='rgba(255,220,220,0.92)';
+  ctx.fillText(`コスト: ${G.continueCost}コイン (残り継続回数 ${3-G.continuesUsed})`,bx1+btnW/2,btnY+35);
+  // 諦めるボタン（右・正解パターン）
+  const bx2=W/2-totalBtnW/2+btnW+gap;
+  ctx.fillStyle='rgba(40,80,40,0.9)';
+  ctx.strokeStyle='rgba(120,220,140,0.8)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.roundRect(bx2,btnY,btnW,btnH,10);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#aaffcc';ctx.font='bold 14px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText('✅ 潔く諦める [N]',bx2+btnW/2,btnY+19);
+  ctx.font='bold 11px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillStyle='rgba(180,255,200,0.85)';
+  ctx.fillText('（こっちが学長のおすすめ）',bx2+btnW/2,btnY+35);
+}
+function applyContinue(){
+  // コンティニュー実行：スコアから借金額を引き、HPを半分回復、敵HPは維持
+  G.score=Math.max(0,G.score-G.continueCost);
+  G.continuesUsed++;
+  G.playerHp=Math.floor(G.playerMaxHp*0.6);
+  G.playerHurt=0;
+  G.combo=0;G.comboTimer=0;
+  G.atkTimer=Math.max(G.atkTimer,180); // 復帰直後の攻撃猶予
+  G.phase='resuming';G.resumeCountdown=180;
+  startBGM();SFX.shohouImpact();
+  flash('#ff4466',0.7);playerDamageVignette=30;
+  // 借金実績（あれば）
+  unlockAchievement('shakkin');
+}
+function declineContinue(){
+  G.phase='gameover';saveHS(G.score,G.comboMax);startChip('gameover');
+  unlockAchievement('nodebt');
+}
 function drawGameOver(){
   ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
   ctx.shadowBlur=28;ctx.shadowColor='#5555ff';ctx.fillStyle='#4466ff';ctx.font='bold 60px monospace';ctx.fillText('GAME OVER',W/2,H/2-18);ctx.shadowBlur=0;
@@ -2127,7 +2238,16 @@ function loop(){
         G.playerHurt=20;G.stageNoDamage=false;
         shake(14);SFX.enemyAtk();wrongBurst(178,202);
         playerDamageVignette=42;addDmgNum(178,168,'被弾！','#ff3366',true);
-        if(G.playerHp<=0){G.phase='gameover';stopBGM();saveHS(G.score,G.comboMax);startChip('gameover');}
+        if(G.playerHp<=0){
+          // Easyモードはコンティニュー可能（最大3回・スコア半額消費）
+          const continueCost=Math.max(100,Math.floor(G.score*0.5));
+          if(selectedDiff==='easy'&&G.continuesUsed<3&&G.score>=continueCost){
+            G.phase='continueprompt';G.continueCost=continueCost;
+            stopBGM();SFX.gaugeFull();
+          }else{
+            G.phase='gameover';stopBGM();saveHS(G.score,G.comboMax);startChip('gameover');
+          }
+        }
       }
       if(G.comboTimer>0)G.comboTimer--;else if(G.combo>0)G.combo=0;
       if(G.wrongFlash>0)G.wrongFlash--;
@@ -2196,6 +2316,11 @@ function loop(){
     const burstP=selectedDiff==='hard'?0.18:(selectedDiff==='normal'?0.10:0.06);
     if(Math.random()<burstP)coinBurst(Math.random()*W,Math.random()*H*0.6);drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();
   }
+  else if(G.phase==='continueprompt'){
+    drawBG();drawLion(178,222,'hurt');drawEnemy(542,222,'idle');
+    drawPts();updatePts();drawContinuePrompt();
+    drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();
+  }
   else if(G.phase==='gameover'){drawBG();drawPts();updatePts();drawGameOver();drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();}
 
   ctx.restore();
@@ -2219,13 +2344,24 @@ function handleKey(key,code){
   if(code==='Enter'){
     if(G.phase==='disclaimer'){G.phase='modeselect';return;}
     if(G.phase==='modeselect'){G.phase='title';startChip('title');return;}
-    if(G.phase==='title'){stopChip();shohouWordIdx=0;shohouCount=0;startStage(0);}
+    if(G.phase==='title'){stopChip();shohouWordIdx=0;shohouCount=0;G.continuesUsed=0;startStage(0);}
     else if(G.phase==='stageclear'){
       if(G.stageIdx<STAGES.length-1){stopChip();startStage(G.stageIdx+1);}
       else{stopChip();G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);unlockAchievement('allclear');setTimeout(()=>startChip('clear'),800);}
     }
-    else if(G.phase==='gameclear'||G.phase==='gameover'){stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.phase='title';startChip('title');}
+    else if(G.phase==='gameclear'||G.phase==='gameover'){stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;G.phase='title';startChip('title');}
     return;
+  }
+  // Continue画面: Y=継続 / N or Escape=諦める
+  if(G.phase==='continueprompt'){
+    if(key==='y'||code==='KeyY'){applyContinue();return;}
+    if(key==='n'||code==='KeyN'||code==='Escape'){declineContinue();return;}
+    return;
+  }
+  // ハイスコア時 R キーで即リスタート（パクリ#2）
+  if(code==='KeyR'&&(G.phase==='gameover'||G.phase==='gameclear')){
+    stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;
+    startStage(G.stageIdx);return;
   }
   if(G.phase==='title'){
     const idx=DIFF_OPTS.indexOf(selectedDiff);
@@ -2394,6 +2530,19 @@ function processFlickChar(ch){
 }
 cvs.addEventListener('click',e=>{
   AC.resume();mobileInput.focus();
+  // Continueプロンプトのクリック判定
+  if(G.phase==='continueprompt'){
+    const rect=cvs.getBoundingClientRect();const scaleX=W/rect.width,scaleY=H/rect.height;
+    const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
+    const btnW=240,btnH=44,gap=24,btnY=H-90;
+    const totalBtnW=btnW*2+gap;
+    const bx1=W/2-totalBtnW/2;const bx2=bx1+btnW+gap;
+    if(my>=btnY&&my<=btnY+btnH){
+      if(mx>=bx1&&mx<=bx1+btnW){applyContinue();return;}
+      if(mx>=bx2&&mx<=bx2+btnW){declineContinue();return;}
+    }
+    return;
+  }
   if(G.phase==='disclaimer'){
     ['強い者との戦い.mp3','ゲームクリアー！.mp3','悲壮.mp3','Escort.mp3','Thunderbolt.mp3'].forEach(f=>{
       const a=new Audio(f);a.volume=0;a.play().then(()=>a.pause()).catch(()=>{});
