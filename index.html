@@ -1110,6 +1110,8 @@ function updateFX(){
 // ── 🍄 敵ラッシュ演出（毒キノコラッシュ等・HP30%以下発動）──
 function drawEnemyRush(){
   if(!G.rushActive)return;
+  // 商流拳中はラッシュ演出を一時停止（被り防止）
+  if(G.shohouIntroTimer>0||G.isShohouMode||shohouTimer>0)return;
   const rush=ENEMY_RUSH[G.stageIdx];if(!rush)return;
   // 常時：背景にラッシュ色の薄い脈動（HP低いほど濃く）
   const ratio=Math.max(0,G.enemyHp/G.enemyMaxHp);
@@ -2362,16 +2364,18 @@ function drawDisclaimer(){
   ctx.fillText('⚠️  非公式ファンゲーム  ⚠️',W/2,28);
   // 本文
   const lines=[
-    {t:'このゲームについて',s:13,c:'#FFD700',b:true,y:64},
-    {t:'本作はリベシティ・両学長を題材にした',s:11,c:'#ccccff',b:false,y:84},
-    {t:'二次創作による非公式ファンゲームです。',s:11,c:'#ffee88',b:true,y:100},
-    {t:'公式作品ではなく、公認・監修もされていません。',s:10,c:'#ccccff',b:false,y:116},
-    {t:'⚠ 外部公開・SNS拡散はお控えください ⚠',s:12,c:'#ff8866',b:true,y:142},
-    {t:'本作は二次創作ファンゲームのため、',s:10,c:'#ffaaaa',b:false,y:160},
-    {t:'SNS・ブログ・YouTube等で広く拡散しないでください。',s:10,c:'#ffaaaa',b:false,y:174},
-    {t:'個人プレイ・身近な友人内のみで楽しんでください。',s:10,c:'#ffaaaa',b:false,y:188},
-    {t:'リベシティ著作物ガイドラインに基づき非営利・無料で運用。',s:10,c:'rgba(180,180,200,0.85)',b:false,y:210},
-    {t:'© リベラルアーツ大学 の著作物を含みます。',s:9,c:'rgba(180,180,200,0.7)',b:false,y:224},
+    {t:'── 免責事項 ──',s:13,c:'#FFD700',b:true,y:52},
+    {t:'① 本作は二次創作の非公式ファンゲーム',s:10,c:'#ffee88',b:true,y:72},
+    {t:'② リベラルアーツ大学様の公式・公認・監修ではありません',s:9,c:'#ccccff',b:false,y:88},
+    {t:'③ © リベラルアーツ大学 の著作物を含みます',s:9,c:'#ccccff',b:false,y:102},
+    {t:'④ リベ著作物ガイドラインに基づき非営利・無料で運用',s:9,c:'#ccccff',b:false,y:116},
+    {t:'⑤ SNS拡散・実況配信・SS投稿はお控えください',s:10,c:'#ff8866',b:true,y:134},
+    {t:'   （個人プレイ・身近な友人内のみで楽しむ）',s:9,c:'#ffaaaa',b:false,y:148},
+    {t:'⑥ 個人情報は収集しません（記録は端末内のみ）',s:9,c:'#aaeebb',b:false,y:164},
+    {t:'⑦ 不具合・損害について作者は責任を負いません',s:9,c:'#aaeebb',b:false,y:178},
+    {t:'⑧ 権利者様より要請があれば速やかに公開停止します',s:9,c:'#aaeebb',b:false,y:192},
+    {t:'⑨ 🤖 Claude Code 学習目的の個人制作物です',s:10,c:'#88ffcc',b:true,y:210},
+    {t:'BGM・SE は各配布元ライセンスに従い使用',s:8,c:'rgba(180,180,200,0.65)',b:false,y:226},
   ];
   lines.forEach(l=>{
     ctx.font=`${l.b?'bold ':''} ${l.s}px "Hiragino Sans","Yu Gothic",monospace`;
@@ -2482,8 +2486,8 @@ const LION_HURT_LINES=[
   '諦めたらそこで終わりやで！',
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.5.1';
-const GAME_LAST_UPDATE='2026-05-14 01:30';
+const GAME_VERSION='v2.6';
+const GAME_LAST_UPDATE='2026-05-14 02:00';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
@@ -3157,16 +3161,32 @@ function loop(){
       G.atkTimer--;
       if(G.atkTimer<=0){
         const st=STAGES[G.stageIdx];
-        // 敵ラッシュモード：HP30%以下で攻撃間隔×0.65
-        const inRush=G.rushActive;
+        // 敵ラッシュモード：HP30%以下で攻撃間隔×0.65（商流拳中は通常戻し）
+        const inRush=G.rushActive&&G.shohouIntroTimer<=0&&!G.isShohouMode&&shohouTimer<=0;
         G.atkTimer=Math.floor(st.atkInterval*(inRush?0.65:1.0));
         G.playerHp=Math.max(0,G.playerHp-st.enemyAtk);
         G.playerHurt=20;G.stageNoDamage=false;
-        shake(14);SFX.enemyAtk();wrongBurst(178,202);
-        playerDamageVignette=42;addDmgNum(178,168,'被弾！','#ff3366',true);
+        // ラッシュ中なら被弾を強化（攻撃力UPの体感）
+        const inRushFx=G.rushActive&&G.shohouIntroTimer<=0&&!G.isShohouMode;
+        const rush=ENEMY_RUSH[G.stageIdx];
+        if(inRushFx){
+          shake(22);SFX.enemyAtk();
+          // ラッシュ専用の派手な被弾
+          wrongBurst(178,202);wrongBurst(178,180);wrongBurst(200,210);
+          playerDamageVignette=66;
+          addDmgNum(178,160,'大被弾！','#ff0033',true);
+          if(rush)addDmgNum(178,140,`${rush.icon} ${rush.name}！`,rush.col,false);
+          // ラッシュ専用効果音（金属＋詠唱）
+          if(SFX&&SFX.missCounterAtk)SFX.missCounterAtk();
+          flash(rush?rush.col:'#ff0033',0.55);
+          // 多重ヒット表現：プレイヤー追加ダメージ
+          G.playerHp=Math.max(0,G.playerHp-Math.floor(st.enemyAtk*0.25));
+        }else{
+          shake(14);SFX.enemyAtk();wrongBurst(178,202);
+          playerDamageVignette=42;addDmgNum(178,168,'被弾！','#ff3366',true);
+        }
         if(G.playerHp<=0){
           // 🌟 奇跡の復活演出（稀に発火・全難易度）
-          // 条件: HPが0になった瞬間で、まだmiracleRevivalを使ってない、12%の確率
           if(!G.miracleRevivalUsed&&Math.random()<0.12){
             G.miracleRevivalUsed=true;
             G.playerHp=Math.floor(G.playerMaxHp*0.5);
@@ -3179,26 +3199,26 @@ function loop(){
             setTimeout(()=>addDmgNum(W/2,H/2-20,'今日が人生で一番若い日や！','#ffee88',false),200);
             for(let i=0;i<20;i++)setTimeout(()=>coinBurst(rand(W*0.2,W*0.8),rand(H*0.2,H*0.6)),i*60);
             unlockAchievement('miracle');
-            return; // game-over分岐をスキップ
-          }
-          // 難易度別Continue設定
-          const conf=CONTINUE_CONFIG[selectedDiff];
-          let continueCost=Math.max(conf.minCost,Math.floor(G.score*conf.costRate));
-          // 救済：スコアがコストに足りない場合、現スコアの半分にディスカウント（最低0）
-          if(conf&&G.score<continueCost&&G.continuesUsed<conf.maxContinues){
-            continueCost=Math.max(0,Math.floor(G.score*0.5));
-          }
-          if(conf&&G.continuesUsed<conf.maxContinues){
-            G.phase='continueprompt';G.continueCost=continueCost;
-            stopBGM();SFX.gaugeFull();
+            // ※ return を削除（loop末端のctx.restore+requestAnimationFrameをスキップしてフリーズしていた）
           }else{
-            G.phase='gameover';stopBGM();saveHS(G.score,G.comboMax);startChip('gameover');
+            const conf=CONTINUE_CONFIG[selectedDiff];
+            let continueCost=Math.max(conf.minCost,Math.floor(G.score*conf.costRate));
+            if(conf&&G.score<continueCost&&G.continuesUsed<conf.maxContinues){
+              continueCost=Math.max(0,Math.floor(G.score*0.5));
+            }
+            if(conf&&G.continuesUsed<conf.maxContinues){
+              G.phase='continueprompt';G.continueCost=continueCost;
+              stopBGM();SFX.gaugeFull();
+            }else{
+              G.phase='gameover';stopBGM();saveHS(G.score,G.comboMax);startChip('gameover');
+            }
           }
         }
       }
       if(G.comboTimer>0)G.comboTimer--;else if(G.combo>0)G.combo=0;
-      // 敵ラッシュ発動チェック：HP30%以下で初回発動
-      if(!G.rushActive&&G.enemyHp>0&&G.enemyHp/G.enemyMaxHp<0.30){
+      // 敵ラッシュ発動チェック：HP30%以下で初回発動（商流拳中は発動しない）
+      if(!G.rushActive&&G.enemyHp>0&&G.enemyHp/G.enemyMaxHp<0.30
+         &&G.shohouIntroTimer<=0&&!G.isShohouMode&&shohouTimer<=0){
         G.rushActive=true;
         G.rushTeloperTimer=140;
         G.rushAnnouncedStage=G.stageIdx;
@@ -3551,9 +3571,10 @@ mobileInput.addEventListener('input',e=>{
     }else{flickLastLen=val.length;}
     return;
   }
-  if(composing)return;
-  const val=e.data;if(!val)return;
-  AC.resume();handleKey(val.toLowerCase(),'Key'+val.toUpperCase());mobileInput.value='';
+  // PC mode: document.keydown 側で処理するのでここでは何もしない
+  // （以前は両方発火して 'cc' や 'aa' 等の連続文字が二重入力になっていた）
+  mobileInput.value='';
+  return;
 });
 mobileInput.addEventListener('keydown',e=>{
   if(e.key==='Backspace'||e.key==='Enter'){e.stopPropagation();AC.resume();handleKey(e.key.toLowerCase(),e.code||e.key);}
