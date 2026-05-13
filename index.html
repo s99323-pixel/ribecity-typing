@@ -243,7 +243,7 @@ function startChip(type){
 // ── ハイスコア ──
 const LS_KEY='vitaminD_hs_v4';
 function loadHS(){try{return JSON.parse(localStorage.getItem(LS_KEY))||{score:0,combo:0,achievements:[]};}catch(e){return{score:0,combo:0,achievements:[]};}}
-function saveHS(score,combo){const hs=loadHS();let u=false;if(score>hs.score){hs.score=score;u=true;}if(combo>hs.combo){hs.combo=combo;u=true;}if(u)localStorage.setItem(LS_KEY,JSON.stringify(hs));return hs;}
+function saveHS(score,combo){const hs=loadHS();let u=false;if(score>hs.score){hs.score=score;u=true;}if(combo>hs.combo){hs.combo=combo;u=true;}hs.lastScore=score;u=true;if(u)localStorage.setItem(LS_KEY,JSON.stringify(hs));return hs;}
 
 // ── 実績 ──
 const ACHIEVEMENTS=[
@@ -264,6 +264,11 @@ const ACHIEVEMENTS=[
   {id:'daily',name:'デイリー達成',desc:'今日のチャレンジを達成！'},
   {id:'shakkin',name:'借金王',desc:'継続のためコインを借金…'},
   {id:'nodebt',name:'潔さの美徳',desc:'借金せず潔く諦めた！'},
+  {id:'fukugyou',name:'副業の力',desc:'Normalで副業継続を選んだ'},
+  {id:'puregrit',name:'根性の戦士',desc:'Normalで継続せず潔く敗北'},
+  {id:'tousi',name:'長期投資家',desc:'Hardで投資継続を選んだ'},
+  {id:'samurai',name:'武士道',desc:'Hardで継続せず潔く敗北'},
+  {id:'perfect5',name:'パーフェクト5連',desc:'5連続でPERFECT WORD達成'},
 ];
 // ── 5つの力バッジ（貯・稼・増・守・使）──
 const POWER_BADGES=[
@@ -1226,6 +1231,7 @@ let G={
   stageNoDamage:true,shohouUsed:false,
   screenFlashTimer:0,
   continuesUsed:0,continueCost:0,
+  wordMissCount:0,perfectStreak:0,perfectTotal:0,
 };
 
 // ── ステージ開始 ──
@@ -1258,6 +1264,7 @@ function nextWord(){
   }
   G.currentWord=G.wordQueue.shift();G.typedIndex=0;G.wrongFlash=0;G.flickTyped='';
   G.wordStartTime=performance.now();G.isShohouMode=false;
+  G.wordMissCount=0; // PERFECT判定用：新ワード開始でリセット
   if(inputMode==='smartphone'&&G.stageIdx===0)resetFlickInput();
 }
 
@@ -1656,7 +1663,38 @@ function drawHUD(){
   const dd=DIFFICULTY_DEFS[selectedDiff];
   ctx.fillStyle=dd.col;ctx.font='bold 8px monospace';ctx.textAlign='left';ctx.fillText(`[${dd.label}]`,14,30);
   ctx.fillStyle='rgba(200,180,255,0.55)';ctx.font='8px monospace';ctx.fillText(`STAGE ${G.stageIdx+1}/5`,58,30);
-  if(G.currentWpm>0){ctx.fillStyle='rgba(100,220,255,0.85)';ctx.font='bold 9px monospace';ctx.textAlign='right';ctx.fillText(`WPM:${G.currentWpm}`,W-14,30);}
+  // ── WPM大型常設表示（中央上部）──
+  if(G.currentWpm>0){
+    const wpm=G.currentWpm;
+    let col,glow,labelCol;
+    if(wpm>=100){
+      const hue=(G.frameN*4)%360;
+      col=`hsl(${hue},100%,65%)`;glow=`hsl(${hue},100%,55%)`;labelCol='#fff';
+    }else if(wpm>=80){col='#ff8844';glow='#ff4400';labelCol='#ffcc99';}
+    else if(wpm>=60){col='#FFD700';glow='#ff9900';labelCol='#ffe890';}
+    else{col='#fff';glow='#3399ff';labelCol='rgba(180,210,255,0.8)';}
+    ctx.save();
+    ctx.textAlign='center';
+    // ラベル
+    ctx.fillStyle=labelCol;ctx.font='bold 9px monospace';
+    ctx.fillText('WPM',W/2-44,28);
+    // 数字（大型）
+    ctx.shadowBlur=wpm>=100?18:12;ctx.shadowColor=glow;
+    ctx.fillStyle=col;ctx.font='bold 22px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillText(String(wpm),W/2-22,32);
+    ctx.shadowBlur=0;
+    // 称号
+    let title='';
+    if(wpm>=100)title='⚡ 神速';
+    else if(wpm>=80)title='🔥 超高速';
+    else if(wpm>=60)title='✨ 高速';
+    if(title){
+      ctx.fillStyle=labelCol;ctx.font='bold 10px "Hiragino Sans","Yu Gothic",monospace';
+      ctx.textAlign='left';
+      ctx.fillText(title,W/2-8,30);
+    }
+    ctx.restore();
+  }
   if(G.combo>=2){
     const blk=Math.floor(G.frameN/5)%2===0;
     ctx.shadowBlur=16+(G.combo>=10?8:0);ctx.shadowColor='#FFD700';
@@ -2269,6 +2307,72 @@ const LION_HURT_LINES=[
   'まだいける！集中せえ！',
   '諦めたらそこで終わりやで！',
 ];
+// ── バージョン情報（タイトル右下表示用）──
+const GAME_VERSION='v2.1';
+const GAME_LAST_UPDATE='2026-05-13 22:00';
+// ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
+const BOOK_QUOTES=[
+  {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
+  {book:'7つの習慣',  quote:'終わりを思い描くことから始める。',    author:'スティーブン・コヴィー'},
+  {book:'7つの習慣',  quote:'まず理解に徹し、そして理解される。',  author:'スティーブン・コヴィー'},
+  {book:'7つの習慣',  quote:'WIN-WINを考える。',                  author:'スティーブン・コヴィー'},
+  {book:'嫌われる勇気',quote:'幸福とは、他者貢献のことである。',  author:'アドラー心理学'},
+  {book:'嫌われる勇気',quote:'課題を分離せよ。',                  author:'アドラー心理学'},
+  {book:'嫌われる勇気',quote:'人生は連続する刹那である。',        author:'アドラー心理学'},
+  {book:'夢をかなえるゾウ',quote:'今すぐできることをやれ。',     author:'水野敬也'},
+  {book:'金持ち父さん貧乏父さん',quote:'資産を買い、負債を買うな。',author:'ロバート・キヨサキ'},
+  {book:'金持ち父さん貧乏父さん',quote:'お金のために働くな、お金に働かせよ。',author:'ロバート・キヨサキ'},
+  {book:'思考は現実化する',quote:'明確な目標を持て、必ず実現する。',author:'ナポレオン・ヒル'},
+  {book:'人を動かす',  quote:'相手の立場から物事を見よ。',         author:'D・カーネギー'},
+  {book:'道は開ける',  quote:'今日一日を生きよ。',                 author:'D・カーネギー'},
+  {book:'バビロンの大富豪',quote:'収入の10分の1を貯めよ。',       author:'ジョージ・S・クレイソン'},
+  {book:'バビロンの大富豪',quote:'欲望に優先順位をつけよ。',     author:'ジョージ・S・クレイソン'},
+  {book:'論語',        quote:'過ちて改めざる、これを過ちという。',author:'孔子'},
+  {book:'論語',        quote:'学んで思わざれば則ち罔し。',         author:'孔子'},
+  {book:'方丈記',      quote:'ゆく河の流れは絶えずして…',         author:'鴨長明'},
+  {book:'武士道',      quote:'恥を知れば、強くなれる。',           author:'新渡戸稲造'},
+  {book:'スラムダンク',quote:'諦めたらそこで試合終了ですよ。',    author:'安西先生'},
+  {book:'銀河鉄道の夜',quote:'本当のさいわいは、人のために生きること。',author:'宮沢賢治'},
+  {book:'GIVE & TAKE',quote:'ギバーが最後に成功する。',           author:'アダム・グラント'},
+];
+// ── 難易度別 Continue 設定（テーマ・コスト・名言）──
+const CONTINUE_CONFIG={
+  easy:{
+    theme:'借金',themeIcon:'💸',themeCol:'#ff4466',themeGlow:'#ff0033',
+    quote:'借金なんかするんじゃねぇ！',quoteAuthor:'両学長',
+    sub:'安易な借金で人生を狂わすな！',
+    costRate:0.50,minCost:100,maxContinues:3,
+    hpRestore:0.6,btnLabel:'💸 借金して継続',
+    achievement:'shakkin',
+    declineAch:'nodebt',
+    speakText:'借金なんかすんじゃねぇ！',
+  },
+  normal:{
+    theme:'副業',themeIcon:'💼',themeCol:'#ff9900',themeGlow:'#ff6600',
+    quote:'副業の力で立ち上がれ！',quoteAuthor:'両学長',
+    sub:'稼ぐ力こそ最強の武器や！',
+    costRate:0.65,minCost:200,maxContinues:2,
+    hpRestore:0.7,btnLabel:'💼 副業して継続',
+    achievement:'fukugyou',
+    declineAch:'puregrit',
+    speakText:'副業で稼げや！',
+  },
+  hard:{
+    theme:'投資',themeIcon:'📈',themeCol:'#8855ff',themeGlow:'#5522dd',
+    quote:'長期・積立・分散投資が真の力！',quoteAuthor:'両学長',
+    sub:'痛みを学びに変えろ、投資家として！',
+    costRate:0.80,minCost:300,maxContinues:1,
+    hpRestore:1.0,btnLabel:'📈 投資して継続',
+    achievement:'tousi',
+    declineAch:'samurai',
+    speakText:'インデックス長期積立や！',
+  },
+};
+function pickBookQuote(){
+  // クリア時のスコア＋ステージで安定的に選定
+  const seed=(G.score+G.stageIdx*101+G.comboMax*7)%BOOK_QUOTES.length;
+  return BOOK_QUOTES[Math.abs(seed)];
+}
 // ── 商流拳発動時の前口上（SHOHOU_WORDS順）──
 const SHOHOU_INTRO_LINES=[
   '不要な保険、ぶっ飛ばすで！',
@@ -2428,6 +2532,12 @@ function drawTitle(){
   ctx.beginPath();ctx.roundRect(8,8,130,18,4);ctx.fill();ctx.stroke();
   ctx.fillStyle='rgba(255,215,0,0.85)';ctx.font='bold 9px monospace';ctx.textAlign='left';
   ctx.fillText('非公式ファンゲーム / Unofficial Fan Game',14,20);
+  // バージョン情報（右下）
+  ctx.fillStyle='rgba(180,180,210,0.55)';ctx.font='9px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.textAlign='right';
+  ctx.fillText(`${GAME_VERSION}  ${GAME_LAST_UPDATE}`,W-14,H-58);
+  ctx.fillStyle='rgba(140,160,200,0.45)';ctx.font='8px monospace';
+  ctx.fillText('Build: タイピングファイター',W-14,H-46);
   ctx.restore();
   // スクロールする名言マーキー
   titleQuoteScroll=(titleQuoteScroll+0.7)%(W+600);
@@ -2565,115 +2675,165 @@ function drawWealthMountain(t){
   veil.addColorStop(0,'rgba(0,0,0,0)');veil.addColorStop(0.5,'rgba(0,0,0,0.45)');veil.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=veil;ctx.fillRect(0,H*0.35,W,H*0.43);
 }
+// ── 3段階リザルト判定 ──
+function getResultRank(){
+  const score=G.score;
+  // 難易度補正
+  const diffMul={easy:1.0,normal:0.8,hard:0.6}[selectedDiff]||0.8;
+  const adjusted=score*diffMul;
+  if(adjusted>=80000)return {rank:'FIRE',label:'🔥 FIRE達成',col:'#FFD700',glow:'#ff9900',sub:'経済的自由を完全制覇！',great:true};
+  if(adjusted>=40000)return {rank:'KOGANE',label:'💰 小金持ち',col:'#88ff88',glow:'#00cc66',sub:'お金持ち街道の途中！',great:false};
+  return {rank:'SEED',label:'🌱 種銭未満',col:'#88aaff',glow:'#5577cc',sub:'もう一度チャレンジしよう！',great:false};
+}
 function drawGameClear(){
   drawWealthMountain(G.frameN);
   ctx.textAlign='center';
   const t=G.frameN*0.02;
   const D=DIFFICULTY_DEFS[selectedDiff]||DIFFICULTY_DEFS.normal;
+  const R=getResultRank();
   // HARDのみ画面フラッシュ
   if(selectedDiff==='hard'){
     const flashA=Math.max(0,Math.sin(G.frameN*0.04))*0.18;
     ctx.fillStyle=`rgba(255,215,0,${flashA})`;ctx.fillRect(0,0,W,H);
   }
-  // 背景スパークル
+  // 背景スパークル（FIRE達成時は虹色）
   const sparkles=selectedDiff==='hard'?50:(selectedDiff==='normal'?35:25);
-  for(let i=0;i<sparkles;i++){const sx=(i*97+G.frameN*0.5)%W,sy=(i*67+G.frameN*0.3)%H;ctx.globalAlpha=Math.sin(G.frameN*0.05+i)*0.3+0.3;ctx.fillStyle=D.titleCol;ctx.beginPath();ctx.arc(sx,sy,1.2,0,Math.PI*2);ctx.fill();}
+  for(let i=0;i<sparkles;i++){const sx=(i*97+G.frameN*0.5)%W,sy=(i*67+G.frameN*0.3)%H;ctx.globalAlpha=Math.sin(G.frameN*0.05+i)*0.3+0.3;ctx.fillStyle=R.col;ctx.beginPath();ctx.arc(sx,sy,1.2,0,Math.PI*2);ctx.fill();}
   ctx.globalAlpha=1;
-  // メインタイトル「FIRE達成！！」
-  ctx.shadowBlur=55+Math.sin(t)*14;ctx.shadowColor=D.titleCol;ctx.fillStyle=D.titleCol;ctx.font='bold 44px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('FIRE達成！！',W/2,H/2-78);ctx.shadowBlur=0;
-  // 称号バッジ
-  ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font='11px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(`〜 ${D.label} クリア記念 称号 〜`,W/2,H/2-44);
-  ctx.shadowBlur=18;ctx.shadowColor=D.titleCol;ctx.fillStyle=D.titleCol;ctx.font='bold 22px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(D.title,W/2,H/2-20);ctx.shadowBlur=0;
-  // 学長のお言葉
-  ctx.fillStyle='#fff';ctx.font='bold 16px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(D.msg1,W/2,H/2+10);
-  ctx.fillStyle='rgba(255,200,80,0.85)';ctx.font='13px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(D.msg2,W/2,H/2+34);
-  // スコア
+  // メインタイトル
+  ctx.shadowBlur=55+Math.sin(t)*14;ctx.shadowColor=R.glow;
+  ctx.fillStyle=R.col;ctx.font='bold 40px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(R.label,W/2,H/2-90);ctx.shadowBlur=0;
+  // ランク判定サブ
+  ctx.fillStyle=R.col;ctx.font='bold 12px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(R.sub,W/2,H/2-66);
+  // 難易度称号
+  ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font='10px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(`〜 ${D.label} クリア記念 〜 ${D.title}`,W/2,H/2-48);
+  // 📚 名言（クリア時のランダム名言）
+  const q=pickBookQuote();
+  ctx.fillStyle='rgba(255,240,200,0.95)';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.shadowBlur=8;ctx.shadowColor='#FFD700';
+  ctx.fillText(`📚「${q.quote}」`,W/2,H/2-22);ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(200,200,225,0.75)';ctx.font='10px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(`― ${q.book}（${q.author}）`,W/2,H/2-6);
+  // 数値レポート（6項目）
   const hs=loadHS();const isNewBest=G.score>hs.score;
-  ctx.fillStyle=isNewBest?'#FFD700':'#aaa';ctx.font='14px monospace';
-  ctx.fillText(`SCORE: ${G.score}${isNewBest?' ★NEW BEST!':''}  MAX COMBO: ${G.comboMax}`,W/2,H/2+62);
-  if(Math.floor(G.frameN/30)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter でタイトルへ ]',W/2,H/2+90);}
+  const lastScore=hs.lastScore||0;
+  const diff=G.score-lastScore;
+  const stats=[
+    {l:'SCORE',v:`${G.score}${isNewBest?' ★NEW BEST!':''}`},
+    {l:'前回比',v:lastScore>0?(diff>=0?`+${diff}↑`:`${diff}↓`):'-'},
+    {l:'MAX COMBO',v:`${G.comboMax}`},
+    {l:'WPM',v:`${G.currentWpm}`},
+    {l:'PERFECT',v:`${G.perfectTotal||0}回`},
+    {l:'継続使用',v:`${G.continuesUsed}回`},
+  ];
+  stats.forEach((s,i)=>{
+    const row=Math.floor(i/3),col=i%3;
+    const x=W/2-220+col*150,y=H/2+22+row*22;
+    ctx.fillStyle='rgba(180,200,240,0.65)';ctx.font='9px monospace';ctx.textAlign='right';
+    ctx.fillText(s.l+':',x,y);
+    ctx.fillStyle='#fff';ctx.font='bold 12px monospace';ctx.textAlign='left';
+    ctx.fillText(s.v,x+4,y);
+  });
+  ctx.textAlign='center';
+  // 操作ガイド
+  if(Math.floor(G.frameN/30)%2===0){
+    ctx.fillStyle='#aaa';ctx.font='11px monospace';
+    ctx.fillText('[ Enter でタイトル ／ R で同ステージ即リスタート ]',W/2,H/2+90);
+  }
+  // ベストスコア更新を記録
+  if(isNewBest&&!G._bestSaved){
+    G._bestSaved=true;
+    try{const newHs=loadHS();newHs.lastScore=G.score;localStorage.setItem(LS_KEY,JSON.stringify(newHs));}catch(e){}
+  }
 }
 
-// ── Easyモード・コンティニュー画面 ──
+// ── コンティニュー画面（3難易度対応・テーマギミック） ──
 function drawContinuePrompt(){
   const t=G.frameN;
-  // 背景：暗転＋赤いオーラ
+  const conf=CONTINUE_CONFIG[selectedDiff]||CONTINUE_CONFIG.easy;
+  // 背景：暗転＋テーマカラーのオーラ
   ctx.fillStyle='rgba(0,0,0,0.86)';ctx.fillRect(0,0,W,H);
-  // 集中線（緊張感）
+  // 集中線（テーマカラー）
+  const themeRGB=conf.theme==='副業'?'255,150,50':conf.theme==='投資'?'140,90,255':'255,40,40';
   for(let i=0;i<30;i++){
     const a=(i/30)*Math.PI*2+t*0.01;
     const inR=140,outR=480;
-    ctx.strokeStyle=`rgba(255,${40+Math.sin(t*0.1+i)*30},40,${0.25+Math.sin(t*0.08+i)*0.1})`;
+    ctx.strokeStyle=`rgba(${themeRGB},${0.25+Math.sin(t*0.08+i)*0.1})`;
     ctx.lineWidth=1.5;
     ctx.beginPath();
     ctx.moveTo(W/2+Math.cos(a)*inR,H/2+Math.sin(a)*inR);
     ctx.lineTo(W/2+Math.cos(a)*outR,H/2+Math.sin(a)*outR);
     ctx.stroke();
   }
-  // 学長ドアップ（説教モード）
+  // 学長ドアップ（テーマに応じた表情）
   const pulse=Math.sin(t*0.1)*0.04+1;
   ctx.save();
   ctx.translate(W/2,H/2+10);
   ctx.scale(3.0*pulse,3.0*pulse);
-  // 怒りオーラ
   const aura=ctx.createRadialGradient(0,-20,5,0,-20,90);
-  aura.addColorStop(0,'rgba(255,80,40,0.5)');
-  aura.addColorStop(1,'rgba(180,20,0,0)');
+  aura.addColorStop(0,`rgba(${themeRGB},0.5)`);
+  aura.addColorStop(1,`rgba(${themeRGB},0)`);
   ctx.fillStyle=aura;
   ctx.beginPath();ctx.arc(0,-20,80,0,Math.PI*2);ctx.fill();
-  ctx.shadowBlur=18;ctx.shadowColor='#ff4400';
+  ctx.shadowBlur=18;ctx.shadowColor=conf.themeGlow;
   drawLion(0,0,'idle');
   ctx.shadowBlur=0;
   ctx.restore();
-  // 大名言「借金なんかするんじゃねぇ！」
+  // 大名言（テーマに応じた）
   ctx.textAlign='center';
   const quoteY=84;
   const quoteScale=1+Math.sin(t*0.18)*0.04;
   ctx.save();
   ctx.translate(W/2,quoteY);
   ctx.scale(quoteScale,quoteScale);
-  // 影レイヤー（揺らぎ）
   for(let li=0;li<3;li++){
     const ox=(Math.random()-0.5)*6,oy=(Math.random()-0.5)*6;
-    ctx.fillStyle=`rgba(255,${40+li*30},0,0.4)`;
-    ctx.shadowBlur=24;ctx.shadowColor='#ff2200';
-    ctx.font='bold 28px "Hiragino Sans","Yu Gothic",monospace';
-    ctx.fillText('借金なんかするんじゃねぇ！',ox,oy);
+    ctx.fillStyle=`rgba(${themeRGB},0.4)`;
+    ctx.shadowBlur=24;ctx.shadowColor=conf.themeGlow;
+    ctx.font='bold 26px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillText(conf.quote,ox,oy);
   }
-  // 本体
   const grad=ctx.createLinearGradient(0,-20,0,20);
-  grad.addColorStop(0,'#ffffff');
-  grad.addColorStop(0.5,'#FFD700');
-  grad.addColorStop(1,'#ff4400');
+  grad.addColorStop(0,'#ffffff');grad.addColorStop(0.5,'#FFD700');grad.addColorStop(1,conf.themeCol);
   ctx.fillStyle=grad;
-  ctx.shadowBlur=20;ctx.shadowColor='#ffaa00';
-  ctx.fillText('借金なんかするんじゃねぇ！',0,0);
+  ctx.shadowBlur=20;ctx.shadowColor=conf.themeGlow;
+  ctx.fillText(conf.quote,0,0);
   ctx.shadowBlur=0;
   ctx.restore();
-  // サブテキスト
+  // サブテキスト＋テーマ説明
   ctx.fillStyle='rgba(255,200,80,0.85)';
   ctx.font='bold 12px "Hiragino Sans","Yu Gothic",monospace';
-  ctx.fillText('── 学長より ──',W/2,quoteY+30);
+  ctx.fillText(`── ${conf.quoteAuthor}より ──`,W/2,quoteY+24);
+  ctx.fillStyle='rgba(220,220,255,0.75)';
+  ctx.font='11px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(conf.sub,W/2,quoteY+42);
+  // テーマバッジ
+  ctx.fillStyle=conf.themeCol;
+  ctx.font='bold 10px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(`${conf.themeIcon} ${selectedDiff.toUpperCase()}モード継続：${conf.theme}の力`,W/2,quoteY+58);
   // 状況説明
   ctx.fillStyle='#fff';
   ctx.font='bold 14px "Hiragino Sans","Yu Gothic",monospace';
   ctx.fillText('💀 倒れたが、まだ立ち上がれる…！',W/2,H-130);
-  // ボタン2つ：継続 / 諦める
+  // ボタン2つ
   const btnW=240,btnH=44,gap=24;
   const totalBtnW=btnW*2+gap;
   const btnY=H-90;
-  // 継続ボタン（左・借金パターン）
   const bx1=W/2-totalBtnW/2;
   const blink=Math.floor(t/15)%2===0;
-  ctx.fillStyle=blink?'rgba(255,60,90,0.95)':'rgba(140,30,40,0.95)';
-  ctx.strokeStyle='#ff4466';ctx.lineWidth=2.2;ctx.shadowBlur=blink?20:8;ctx.shadowColor='#ff3366';
+  // 継続ボタン（テーマカラー）
+  ctx.fillStyle=blink?conf.themeCol:`rgba(${themeRGB},0.5)`;
+  ctx.strokeStyle=conf.themeCol;ctx.lineWidth=2.2;ctx.shadowBlur=blink?20:8;ctx.shadowColor=conf.themeGlow;
   ctx.beginPath();ctx.roundRect(bx1,btnY,btnW,btnH,10);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
   ctx.fillStyle='#fff';ctx.font='bold 14px "Hiragino Sans","Yu Gothic",monospace';
-  ctx.fillText(`💸 借金して継続 [Y]`,bx1+btnW/2,btnY+19);
+  ctx.fillText(`${conf.btnLabel} [Y]`,bx1+btnW/2,btnY+19);
   ctx.font='bold 11px "Hiragino Sans","Yu Gothic",monospace';
-  ctx.fillStyle='rgba(255,220,220,0.92)';
-  ctx.fillText(`コスト: ${G.continueCost}コイン (残り継続回数 ${3-G.continuesUsed})`,bx1+btnW/2,btnY+35);
-  // 諦めるボタン（右・正解パターン）
+  ctx.fillStyle='rgba(255,255,255,0.92)';
+  ctx.fillText(`コスト: ${G.continueCost}pt (残り ${conf.maxContinues-G.continuesUsed}回・HP${Math.round(conf.hpRestore*100)}%回復)`,bx1+btnW/2,btnY+35);
+  // 諦めるボタン
   const bx2=W/2-totalBtnW/2+btnW+gap;
   ctx.fillStyle='rgba(40,80,40,0.9)';
   ctx.strokeStyle='rgba(120,220,140,0.8)';ctx.lineWidth=2;
@@ -2685,28 +2845,48 @@ function drawContinuePrompt(){
   ctx.fillText('（こっちが学長のおすすめ）',bx2+btnW/2,btnY+35);
 }
 function applyContinue(){
-  // コンティニュー実行：スコアから借金額を引き、HPを半分回復、敵HPは維持
+  const conf=CONTINUE_CONFIG[selectedDiff]||CONTINUE_CONFIG.easy;
   G.score=Math.max(0,G.score-G.continueCost);
   G.continuesUsed++;
-  G.playerHp=Math.floor(G.playerMaxHp*0.6);
+  G.playerHp=Math.floor(G.playerMaxHp*conf.hpRestore);
   G.playerHurt=0;
   G.combo=0;G.comboTimer=0;
-  G.atkTimer=Math.max(G.atkTimer,180); // 復帰直後の攻撃猶予
+  G.atkTimer=Math.max(G.atkTimer,180);
   G.phase='resuming';G.resumeCountdown=180;
   startBGM();SFX.shohouImpact();
-  flash('#ff4466',0.7);playerDamageVignette=30;
-  // 借金実績（あれば）
-  unlockAchievement('shakkin');
+  flash(conf.themeCol,0.7);playerDamageVignette=30;
+  unlockAchievement(conf.achievement);
+  if(SFX&&SFX.speak)SFX.speak(conf.speakText,{rate:1.05,pitch:0.8,volume:0.85});
 }
 function declineContinue(){
+  const conf=CONTINUE_CONFIG[selectedDiff]||CONTINUE_CONFIG.easy;
   G.phase='gameover';saveHS(G.score,G.comboMax);startChip('gameover');
-  unlockAchievement('nodebt');
+  unlockAchievement(conf.declineAch);
 }
 function drawGameOver(){
-  ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,0,0,0.85)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  // 📚 GAME OVER画面でも名言（励まし）
+  const q=pickBookQuote();
+  ctx.fillStyle='rgba(255,240,200,0.85)';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.shadowBlur=8;ctx.shadowColor='#FFD700';
+  ctx.fillText(`📚「${q.quote}」`,W/2,H-72);ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(200,200,225,0.65)';ctx.font='10px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(`― ${q.book}（${q.author}）`,W/2,H-56);
   ctx.shadowBlur=28;ctx.shadowColor='#5555ff';ctx.fillStyle='#4466ff';ctx.font='bold 60px monospace';ctx.fillText('GAME OVER',W/2,H/2-18);ctx.shadowBlur=0;
-  ctx.fillStyle='#aaa';ctx.font='14px monospace';ctx.fillText(`SCORE: ${G.score}`,W/2,H/2+30);
-  if(Math.floor(G.frameN/30)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter でタイトルへ ]',W/2,H/2+64);}
+  // スコアと「あと一歩」演出
+  const hs=loadHS();const bestDiff=hs.score-G.score;
+  ctx.fillStyle='#aaa';ctx.font='14px monospace';ctx.fillText(`SCORE: ${G.score}`,W/2,H/2+22);
+  if(bestDiff>0&&bestDiff<5000){
+    ctx.fillStyle='#FFD700';ctx.font='bold 12px monospace';
+    ctx.fillText(`あと ${bestDiff}pt でハイスコア更新！`,W/2,H/2+42);
+  }else if(G.enemyHp>0&&G.enemyHp<G.enemyMaxHp*0.15){
+    ctx.fillStyle='#ffaa55';ctx.font='bold 12px monospace';
+    ctx.fillText(`あと一歩！敵HP残り ${G.enemyHp}`,W/2,H/2+42);
+  }
+  if(Math.floor(G.frameN/30)%2===0){
+    ctx.fillStyle='#aaa';ctx.font='12px monospace';
+    ctx.fillText('[ Enter でタイトル ／ R で即リスタート ]',W/2,H/2+68);
+  }
 }
 function drawPause(){
   ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
@@ -2761,9 +2941,10 @@ function loop(){
         shake(14);SFX.enemyAtk();wrongBurst(178,202);
         playerDamageVignette=42;addDmgNum(178,168,'被弾！','#ff3366',true);
         if(G.playerHp<=0){
-          // Easyモードはコンティニュー可能（最大3回・スコア半額消費）
-          const continueCost=Math.max(100,Math.floor(G.score*0.5));
-          if(selectedDiff==='easy'&&G.continuesUsed<3&&G.score>=continueCost){
+          // 難易度別Continue設定
+          const conf=CONTINUE_CONFIG[selectedDiff];
+          const continueCost=Math.max(conf.minCost,Math.floor(G.score*conf.costRate));
+          if(conf&&G.continuesUsed<conf.maxContinues&&G.score>=continueCost){
             G.phase='continueprompt';G.continueCost=continueCost;
             stopBGM();SFX.gaugeFull();
           }else{
@@ -2951,7 +3132,7 @@ function handleKey(key,code){
       processWordComplete(word);
     }
   }else{
-    G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(6);SFX.wrong();wrongBurst(W/2,H-90);
+    G.wrongFlash=14;G.combo=0;G.comboTimer=0;G.wordMissCount++;G.perfectStreak=0;shake(6);SFX.wrong();wrongBurst(W/2,H-90);
   }
 }
 function processWordComplete(word){
@@ -2992,6 +3173,20 @@ function processWordComplete(word){
   G.playerAtk=20;G.enemyHurt=22;G.hitstop=8;
   flash('#FFD700',0.32);SFX.wordClear();
   enemyTypingShake=Math.max(enemyTypingShake,14);
+  // PERFECT WORD判定（ミス0でクリア）
+  if(G.wordMissCount===0&&!isShohouFinish){
+    G.perfectStreak++;G.perfectTotal++;
+    const bonus=500+(G.perfectStreak>=3?G.perfectStreak*100:0);
+    G.score+=bonus;
+    addDmgNum(W/2,H/2-30,`PERFECT! +${bonus}`,'#00ffff',true);
+    if(G.perfectStreak>=3)addDmgNum(W/2,H/2-58,`${G.perfectStreak} PERFECT 連続！`,'#88ffff',false);
+    // 軽量SE
+    if(SFX&&SFX.combo5)SFX.combo5();
+    if(G.perfectStreak>=5){
+      flash('#00ffff',0.4);
+      unlockAchievement('perfect5');
+    }
+  }
   triggerEnemyHitFlash();
   addImpact(542,200,14,'#FFD700');
   wordClearBurst(word.word,W/2,H-110);
@@ -3113,7 +3308,7 @@ function processFlickChar(ch){
     }
   }else{
     G.flickTyped='';
-    G.wrongFlash=14;G.combo=0;G.comboTimer=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
+    G.wrongFlash=14;G.combo=0;G.comboTimer=0;G.wordMissCount++;G.perfectStreak=0;shake(5);SFX.wrong();wrongBurst(W/2,H-90);
   }
 }
 cvs.addEventListener('click',e=>{
