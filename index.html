@@ -831,6 +831,55 @@ function drawDamageVignette(){
   ctx.fillRect(0,H-8,W,8);
   ctx.restore();
 }
+// ── 瀕死ビネット（HP25%以下で常時脈動）──
+function drawLowHpVignette(){
+  if(!G.playerMaxHp||G.playerHp<=0)return;
+  const ratio=G.playerHp/G.playerMaxHp;
+  if(ratio>=0.25)return;
+  const intensity=(0.25-ratio)/0.25; // 0→1（HPが少ないほど強い）
+  const heartbeat=Math.sin(G.frameN*0.16)*0.45+0.55; // 心拍リズム
+  const a=intensity*heartbeat*0.6;
+  const g=ctx.createRadialGradient(W/2,H/2,W*0.22,W/2,H/2,W*0.68);
+  g.addColorStop(0,'rgba(255,0,0,0)');
+  g.addColorStop(1,`rgba(190,10,30,${a})`);
+  ctx.save();ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // 「危険！」テロップ（HP10%以下）
+  if(ratio<0.10){
+    const blink=Math.floor(G.frameN/12)%2===0;
+    if(blink){
+      ctx.fillStyle='rgba(255,40,60,0.9)';
+      ctx.font='bold 14px "Hiragino Sans","Yu Gothic",monospace';
+      ctx.textAlign='center';ctx.shadowBlur=14;ctx.shadowColor='#ff0033';
+      ctx.fillText('⚠ 危険！HPが少ない！',W/2,H/2-100);
+      ctx.shadowBlur=0;
+    }
+  }
+  ctx.restore();
+}
+// ── 敵チャージ警告（攻撃まで80フレ以下で表示）──
+function drawEnemyChargeWarn(){
+  const st=STAGES[G.stageIdx];
+  const atkR=G.atkTimer/st.atkInterval;
+  if(G.atkTimer>=80||G.atkTimer<=0)return;
+  const closeness=1-G.atkTimer/80;
+  const blink=Math.floor(G.frameN/(6-Math.floor(closeness*4)))%2===0;
+  if(!blink)return;
+  const a=closeness*0.85;
+  ctx.save();
+  // 右側赤フチ
+  const g=ctx.createLinearGradient(W*0.55,0,W,0);
+  g.addColorStop(0,'rgba(255,0,0,0)');
+  g.addColorStop(1,`rgba(255,30,30,${a*0.6})`);
+  ctx.fillStyle=g;
+  ctx.fillRect(W*0.55,0,W*0.45,H);
+  // 警告アイコン
+  ctx.fillStyle=`rgba(255,${Math.floor(40+60*closeness)},40,${a})`;
+  ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.textAlign='right';ctx.shadowBlur=12;ctx.shadowColor='#ff0033';
+  ctx.fillText('⚠ 敵が攻撃してくる！',W-14,76);
+  ctx.shadowBlur=0;
+  ctx.restore();
+}
 // ── インパクトライン（放射状の打撃線）──
 let impactLines=[];
 function addImpact(x,y,count=14,color='#FFD700'){
@@ -1330,8 +1379,8 @@ function drawHUD(){
   }
   ctx.strokeStyle=isFull?'#ffaa00':'rgba(100,180,255,0.55)';ctx.lineWidth=1.2;ctx.beginPath();ctx.roundRect(gx,gy,gw,gh,5);ctx.stroke();
   ctx.textAlign='left';ctx.font='bold 9px monospace';
-  if(isFull){const blink=Math.floor(G.frameN/8)%2===0;ctx.fillStyle=blink?'#ffcc00':'#fff';ctx.shadowBlur=10;ctx.shadowColor='#ff8800';ctx.fillText('商流拳！ [Space]',gx+5,gy+11);ctx.shadowBlur=0;}
-  else{ctx.fillStyle='rgba(120,180,255,0.85)';ctx.fillText(`商流拳 ${Math.floor(gRatio*100)}%`,gx+5,gy+11);}
+  if(isFull){const blink=Math.floor(G.frameN/8)%2===0;ctx.fillStyle=blink?'#ffcc00':'#fff';ctx.shadowBlur=10;ctx.shadowColor='#ff8800';ctx.fillText('▶ 次のワードクリアで発動！',gx+5,gy+11);ctx.shadowBlur=0;}
+  else{ctx.fillStyle='rgba(120,180,255,0.85)';ctx.fillText(`商流拳ゲージ ${Math.floor(gRatio*100)}%`,gx+5,gy+11);}
   // ── HUD 5つの力ミニバッジ（敵HPバー下）──
   {
     const mini=16,mgap=3;
@@ -1927,15 +1976,26 @@ function drawTitle(){
   ctx.fillText(`BEST: ${hs.score}pts  MAX COMBO: ${hs.combo}`,W/2,H-38);
   const unlocked=getAchievements();
   ctx.fillStyle='rgba(130,130,165,0.5)';ctx.font='9px monospace';ctx.fillText(`実績: ${unlocked.length}/${ACHIEVEMENTS.length}`,W/2,H-24);
-  // ── 5つの力バッジ（タイトル右下）──
+  // ── 5つの力バッジ（タイトル下部・大型表示）──
   {
-    const badgeSize=26,gap=5;
+    const badgeSize=44,gap=10;
     const totalW=POWER_BADGES.length*badgeSize+(POWER_BADGES.length-1)*gap;
-    const bx=W-totalW-14,by=H-badgeSize-12;
-    // ラベル
-    ctx.fillStyle='rgba(220,220,240,0.55)';ctx.font='bold 9px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='right';
-    ctx.fillText('5つの力',W-14,by-4);
+    const bx=W/2-totalW/2,by=H-badgeSize-58;
+    // 見出し
+    ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,215,0,0.85)';ctx.font='bold 11px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.shadowBlur=8;ctx.shadowColor='#FFD700';
+    ctx.fillText('━━ 5つの力 ━━',W/2,by-10);ctx.shadowBlur=0;
     drawPowerBadges(bx,by,badgeSize,{gap});
+    // 各バッジの下に名称
+    ctx.font='bold 9px "Hiragino Sans","Yu Gothic",monospace';
+    const ids=getAchievements();
+    POWER_BADGES.forEach((b,i)=>{
+      const cx=bx+i*(badgeSize+gap)+badgeSize/2;
+      const on=ids.includes(b.achievementId);
+      ctx.fillStyle=on?b.color:'rgba(140,140,160,0.6)';
+      ctx.fillText(b.name,cx,by+badgeSize+12);
+    });
   }
   // 非公式バッジ（常時表示）
   ctx.save();
@@ -2090,9 +2150,9 @@ function loop(){
     if(G.enemyHurt>0&&Math.floor(G.enemyHurt/3)%2===0){ctx.save();ctx.filter='brightness(3) saturate(0)';ctx.translate(esx,0);drawEnemy(542,222,enemyState);ctx.restore();}
     else{ctx.translate(esx,0);drawEnemy(542,222,enemyState);ctx.translate(-esx,0);}
     drawImpactLines();drawEnemyHitFlash(542,222);
-    drawHUD();drawWordPanel();drawShohouIntro();drawShohouEffect();
+    drawHUD();drawWordPanel();drawEnemyChargeWarn();drawShohouIntro();drawShohouEffect();
     if(flashA>0.01){ctx.globalAlpha=flashA;ctx.fillStyle=flashC;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
-    drawDamageVignette();
+    drawLowHpVignette();drawDamageVignette();
     drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();
   }
   else if(G.phase==='paused'){drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();drawPause();drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();}
