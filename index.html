@@ -160,6 +160,53 @@ const SFX={
     [261,329,392,523,659,784,988,1318].forEach((f,i)=>osc(f,0.7,'sine',0.22,i*0.04));
     setTimeout(()=>{[523,784,1047,1568].forEach((f,i)=>osc(f,0.4,'sine',0.3,i*0.05));},300);
   },
+  // ブラウザTTSで日本語セリフを喋らせる（捨て台詞用）
+  speak:(text,opts)=>{
+    if(!('speechSynthesis' in window))return;
+    opts=opts||{};
+    try{
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang='ja-JP';
+      u.rate=opts.rate||1.05;
+      u.pitch=opts.pitch||0.85;
+      u.volume=opts.volume||0.9;
+      // 日本語ボイス優先選択
+      const voices=window.speechSynthesis.getVoices();
+      const jp=voices.find(v=>/ja[-_]JP|Japanese/i.test(v.lang+v.name));
+      if(jp)u.voice=jp;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  },
+  // SF2リスペクト「うーお！」KO叫び（自前合成・著作権セーフ）
+  koCry:(idx)=>{
+    const basePitch=145-idx*12; // 145, 133, 121 Hz
+    const dur=0.55;
+    const t=AC.currentTime;
+    // 基音（声帯模擬：sineに微弱vibrato）
+    const o1=AC.createOscillator();o1.type='sawtooth';
+    o1.frequency.setValueAtTime(basePitch,t);
+    o1.frequency.linearRampToValueAtTime(basePitch*0.82,t+dur*0.7);
+    o1.frequency.linearRampToValueAtTime(basePitch*0.55,t+dur);
+    const g1=AC.createGain();
+    g1.gain.setValueAtTime(0.001,t);
+    g1.gain.exponentialRampToValueAtTime(0.55,t+0.05);
+    g1.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    // 第1フォルマント（う→お）
+    const fil1=AC.createBiquadFilter();
+    fil1.type='bandpass';
+    fil1.frequency.setValueAtTime(330,t);
+    fil1.frequency.linearRampToValueAtTime(500,t+dur);
+    fil1.Q.value=10;
+    // 第2フォルマント
+    const fil2=AC.createBiquadFilter();
+    fil2.type='bandpass';
+    fil2.frequency.setValueAtTime(870,t);
+    fil2.frequency.linearRampToValueAtTime(880,t+dur);
+    fil2.Q.value=14;
+    o1.connect(fil1);fil1.connect(fil2);fil2.connect(g1);g1.connect(sfxGain);
+    o1.start(t);o1.stop(t+dur);
+  },
 };
 
 function startBGM(){stopBGM();bgmAudio=new Audio('Escort.mp3');bgmAudio.loop=true;bgmAudio.volume=0.22;bgmPlaying=true;bgmAudio.play().catch(e=>console.warn('BGM:',e));}
@@ -1274,12 +1321,31 @@ function drawEnemy(x,y,state){
   const st=STAGES[G.stageIdx];
   ctx.save();
 
-  // KO倒れアニメ：enemyKoTimerで傾く
+  // KO倒れアニメ：SF2リスペクト・スローモ吹っ飛び（enemyKoTimer 180→0）
   if(state==='ko'&&G.enemyKoTimer>0){
     const t=G.enemyKoTimer;
-    const fallRot=Math.min((90-t)/90,1)*1.5; // 最大約85度まで倒れる
-    const fallX=Math.min((90-t)/90,1)*40;    // 右に流れる
-    ctx.translate(x+fallX,y);ctx.rotate(fallRot);
+    const progress=Math.min(1,(180-t)/180); // 0→1
+    // 段階1（0-0.18）: 衝撃硬直＋首振り
+    // 段階2（0.18-0.55）: 上方へ吹っ飛び（放物線）
+    // 段階3（0.55-1.0）: 回転落下
+    let fallX,fallY,fallRot;
+    if(progress<0.18){
+      const p=progress/0.18;
+      fallX=-Math.sin(p*Math.PI*3)*6;
+      fallY=Math.sin(p*Math.PI)*8;
+      fallRot=Math.sin(p*Math.PI*4)*0.18;
+    }else if(progress<0.55){
+      const p=(progress-0.18)/0.37;
+      fallX=p*120;
+      fallY=-Math.sin(p*Math.PI)*140; // 放物線で上昇
+      fallRot=p*Math.PI*1.4;
+    }else{
+      const p=(progress-0.55)/0.45;
+      fallX=120+p*180;
+      fallY=-Math.sin((1-p)*Math.PI*0.5)*30+p*p*180;
+      fallRot=Math.PI*1.4+p*Math.PI*2.5;
+    }
+    ctx.translate(x+fallX,y+fallY);ctx.rotate(fallRot);
   } else {
     ctx.translate(x,y);
     // チャージ演出：攻撃前60フレームに前傾み＋グロー
@@ -2453,13 +2519,30 @@ function processWordComplete(word){
   if(G.enemyHp<=0){
     G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
     stopShohouBGM();
-    SFX.ko();flash('#FFD700',0.92);G.enemyKoTimer=90;
+    SFX.ko();flash('#FFD700',0.92);
     enemyTypingShake=40;
+    // SF2リスペクト・大KO演出
+    G.enemyKoTimer=180;            // 90→180（3秒のスローモ吹っ飛び）
+    G.hitstop=30;                  // 大ヒットストップで「決まった！」感
+    zoomTargetScale=1.85;zoomCX=540;zoomCY=200; // 敵をクローズアップ
+    setTimeout(()=>zoomTargetScale=1.0,1600);
+    // 「うーお！」3連呼（自前合成）
+    SFX.koCry(0);addDmgNum(540,170,'うーお！','#fff',true);
+    setTimeout(()=>{SFX.koCry(1);addDmgNum(620,160,'うーお！','#ffaa00',true);},340);
+    setTimeout(()=>{SFX.koCry(2);addDmgNum(700,150,'うーお！','#ff6600',true);},680);
+    // 捨て台詞TTS（敵がやられ際に喋る）
+    setTimeout(()=>{
+      const lines=ENEMY_LINES[G.stageIdx]||[];
+      if(lines.length>0){
+        const line=lines[Math.floor(Math.random()*lines.length)];
+        SFX.speak(line,{rate:1.0,pitch:0.75,volume:0.85});
+      }
+    },1150);
     unlockAchievement('first_kill');
     if(G.stageNoDamage)unlockAchievement('nodamage');
-    for(let i=0;i<24;i++)setTimeout(()=>coinBurst(Math.random()*W,Math.random()*H*0.5),i*75);
+    for(let i=0;i<32;i++)setTimeout(()=>coinBurst(Math.random()*W,Math.random()*H*0.5),i*55);
     setBGMPitch(1.0);stopBGM();
-    setTimeout(()=>{G.phase='stageclear';SFX.stageClear();startChip('clear');},1300);
+    setTimeout(()=>{G.phase='stageclear';SFX.stageClear();startChip('clear');},2700);
   }else{nextWord();}
 }
 
