@@ -2482,8 +2482,8 @@ const LION_HURT_LINES=[
   '諦めたらそこで終わりやで！',
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.5';
-const GAME_LAST_UPDATE='2026-05-14 01:20';
+const GAME_VERSION='v2.5.1';
+const GAME_LAST_UPDATE='2026-05-14 01:30';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
@@ -3366,7 +3366,9 @@ function handleKey(key,code){
   }
   // ハイスコア時 R キーで即リスタート（パクリ#2）
   if(code==='KeyR'&&(G.phase==='gameover'||G.phase==='gameclear')){
-    stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;
+    stopChip();stopBGM();
+    G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;
+    shohouWordIdx=0;shohouCount=0;
     startStage(G.stageIdx);return;
   }
   if(G.phase==='title'){
