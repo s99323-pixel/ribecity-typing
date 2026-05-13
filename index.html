@@ -2498,34 +2498,79 @@ const LION_HURT_LINES=[
   '失敗は最高の学びやで！',
   'まだいける！集中せえ！',
   '諦めたらそこで終わりやで！',
+  '深呼吸や！焦りは禁物やで！',
+  'コツコツが最強や！',
+];
+// ── ステージクリア時の学長勝利スピーチ ──
+const LION_VICTORY_LINES=[
+  ['よっしゃ！詐欺キノコ撃退や！','楽して稼ぐ毒に騙されたらアカン！','行動した者だけが報われるんや！'],
+  ['詐欺師に勝った！冷静な判断や！','「うまい話」は罠や。覚えとき！','疑う力も生きる力やで！'],
+  ['保険販売員撃破や！','不要な保険は人生のコストや！','掛け捨てで十分な場合が多いで！'],
+  ['悪徳FPに勝った！','手数料3%は論外や！','インデックスファンドが最強や！'],
+  ['ブラック学長を倒した！','お前はもう本物の自由人や！','「今日が人生で一番若い日」や！'],
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.7';
-const GAME_LAST_UPDATE='2026-05-14 02:30';
+const GAME_VERSION='v2.8';
+// 最終更新時刻（手動更新・JST 日本時間）
+const GAME_LAST_UPDATE='2026-05-14 05:30 JST';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
   {book:'7つの習慣',  quote:'終わりを思い描くことから始める。',    author:'スティーブン・コヴィー'},
   {book:'7つの習慣',  quote:'まず理解に徹し、そして理解される。',  author:'スティーブン・コヴィー'},
   {book:'7つの習慣',  quote:'WIN-WINを考える。',                  author:'スティーブン・コヴィー'},
+  {book:'7つの習慣',  quote:'刃を研ぐ時間を持て。',                author:'スティーブン・コヴィー'},
   {book:'嫌われる勇気',quote:'幸福とは、他者貢献のことである。',  author:'アドラー心理学'},
   {book:'嫌われる勇気',quote:'課題を分離せよ。',                  author:'アドラー心理学'},
   {book:'嫌われる勇気',quote:'人生は連続する刹那である。',        author:'アドラー心理学'},
+  {book:'嫌われる勇気',quote:'すべての悩みは対人関係の悩みである。',author:'アドラー心理学'},
   {book:'夢をかなえるゾウ',quote:'今すぐできることをやれ。',     author:'水野敬也'},
+  {book:'夢をかなえるゾウ',quote:'靴を磨け。最も近い場所を整えよ。',author:'水野敬也'},
   {book:'金持ち父さん貧乏父さん',quote:'資産を買い、負債を買うな。',author:'ロバート・キヨサキ'},
   {book:'金持ち父さん貧乏父さん',quote:'お金のために働くな、お金に働かせよ。',author:'ロバート・キヨサキ'},
+  {book:'金持ち父さん貧乏父さん',quote:'家は資産ではない、負債である。',author:'ロバート・キヨサキ'},
   {book:'思考は現実化する',quote:'明確な目標を持て、必ず実現する。',author:'ナポレオン・ヒル'},
   {book:'人を動かす',  quote:'相手の立場から物事を見よ。',         author:'D・カーネギー'},
+  {book:'人を動かす',  quote:'重要感を与えよ。',                   author:'D・カーネギー'},
   {book:'道は開ける',  quote:'今日一日を生きよ。',                 author:'D・カーネギー'},
+  {book:'道は開ける',  quote:'運命のレモンをレモネードに変えよ。', author:'D・カーネギー'},
   {book:'バビロンの大富豪',quote:'収入の10分の1を貯めよ。',       author:'ジョージ・S・クレイソン'},
   {book:'バビロンの大富豪',quote:'欲望に優先順位をつけよ。',     author:'ジョージ・S・クレイソン'},
+  {book:'バビロンの大富豪',quote:'貯めた金に働かせよ。',         author:'ジョージ・S・クレイソン'},
   {book:'論語',        quote:'過ちて改めざる、これを過ちという。',author:'孔子'},
   {book:'論語',        quote:'学んで思わざれば則ち罔し。',         author:'孔子'},
+  {book:'論語',        quote:'己の欲せざる所、人に施すなかれ。',   author:'孔子'},
   {book:'方丈記',      quote:'ゆく河の流れは絶えずして…',         author:'鴨長明'},
   {book:'武士道',      quote:'恥を知れば、強くなれる。',           author:'新渡戸稲造'},
   {book:'スラムダンク',quote:'諦めたらそこで試合終了ですよ。',    author:'安西先生'},
   {book:'銀河鉄道の夜',quote:'本当のさいわいは、人のために生きること。',author:'宮沢賢治'},
   {book:'GIVE & TAKE',quote:'ギバーが最後に成功する。',           author:'アダム・グラント'},
+  {book:'ファクトフルネス',quote:'世界はあなたが思うより良い。', author:'ハンス・ロスリング'},
+  {book:'サピエンス全史',quote:'虚構が人類を結びつけた。',       author:'ユヴァル・ノア・ハラリ'},
+  {book:'LIFE SHIFT',quote:'人生は3ステージから100年へ。',       author:'リンダ・グラットン'},
+  {book:'ホモ・デウス',quote:'幸福は内側からくる。',             author:'ユヴァル・ノア・ハラリ'},
+  {book:'1分間マネジャー',quote:'目標を1つに絞れ。',             author:'K・ブランチャード'},
+  {book:'ザ・ゴール',  quote:'制約条件を見つけ集中せよ。',         author:'エリヤフ・ゴールドラット'},
+  {book:'チーズはどこへ消えた？',quote:'変化を恐れず、楽しめ。',   author:'スペンサー・ジョンソン'},
+  {book:'孫子の兵法',  quote:'戦わずして勝つが最善。',             author:'孫武'},
+  {book:'孫子の兵法',  quote:'敵を知り己を知れば百戦危うからず。',author:'孫武'},
+  {book:'マネジメント',quote:'顧客の創造が事業の目的。',         author:'P・ドラッカー'},
+  {book:'プロフェッショナルの条件',quote:'強みに集中せよ。',     author:'P・ドラッカー'},
+  {book:'宮本武蔵',    quote:'我事に於いて後悔せず。',            author:'吉川英治'},
+  {book:'坂の上の雲',  quote:'まことに小さな国が、開花期を迎える。',author:'司馬遼太郎'},
+  {book:'竜馬がゆく',  quote:'世に生を得るは事を成すにあり。',     author:'司馬遼太郎'},
+  {book:'夜と霧',      quote:'生きる意味は、見出すものである。',   author:'V・E・フランクル'},
+  {book:'幸福論',      quote:'幸福は習慣でできている。',           author:'アラン'},
+  {book:'マインドセット',quote:'能力は伸ばせる、と信じよ。',     author:'キャロル・ドゥエック'},
+  {book:'GRIT',        quote:'やり抜く力こそ才能である。',         author:'アンジェラ・ダックワース'},
+  {book:'ザ・シークレット',quote:'求めよ、信じよ、受け取れ。',   author:'ロンダ・バーン'},
+  {book:'エッセンシャル思考',quote:'より少なく、しかしより良く。',author:'グレッグ・マキューン'},
+  {book:'デール・カーネギーの言葉',quote:'笑顔は1セントもかからない。',author:'D・カーネギー'},
+  {book:'マーフィーの法則',quote:'信じれば叶う、潜在意識は万能。',author:'ジョセフ・マーフィー'},
+  {book:'反省・改善の名言',quote:'今日が人生で一番若い日や。',   author:'両学長'},
+  {book:'両学長の教え',quote:'借金なんかすんじゃねえ！',         author:'両学長'},
+  {book:'両学長の教え',quote:'副業で複数の収入の柱を作れ。',     author:'両学長'},
+  {book:'両学長の教え',quote:'貯める・稼ぐ・増やす・守る・使う。',author:'両学長'},
 ];
 // ── 難易度別 Continue 設定（テーマ・コスト・名言）──
 const CONTINUE_CONFIG={
@@ -2574,9 +2619,13 @@ const HARD_GIMMICKS=[
   {name:'両学長の極意',     icon:'🦁',col:'#FFD700',quote:'今日が人生で一番若い日！',sub:'最後の切り札・必ず立ち上がれ',hpMul:1.50,costMul:0.40,speak:'今日が人生で一番若い日や！'},
 ];
 function pickBookQuote(){
-  // クリア時のスコア＋ステージで安定的に選定
-  const seed=(G.score+G.stageIdx*101+G.comboMax*7)%BOOK_QUOTES.length;
-  return BOOK_QUOTES[Math.abs(seed)];
+  // パフォーマンス：phase遷移時のscore値でキャッシュ
+  const cacheKey=`${G.score}_${G.stageIdx}_${G.comboMax}_${G.phase}`;
+  if(G._cachedQuoteKey===cacheKey&&G._cachedQuote)return G._cachedQuote;
+  const seed=Math.abs(G.score+G.stageIdx*101+G.comboMax*7)%BOOK_QUOTES.length;
+  G._cachedQuote=BOOK_QUOTES[seed];
+  G._cachedQuoteKey=cacheKey;
+  return G._cachedQuote;
 }
 // ── 敵ラッシュ（HP30%以下で発動・各ステージ固有の必殺コンボ）──
 const ENEMY_RUSH={
@@ -3586,7 +3635,15 @@ function processWordComplete(word){
     if(G.stageNoDamage)unlockAchievement('nodamage');
     for(let i=0;i<32;i++)setTimeout(()=>coinBurst(Math.random()*W,Math.random()*H*0.5),i*55);
     setBGMPitch(1.0);stopBGM();
-    setTimeout(()=>{G.phase='stageclear';SFX.stageClear();startChip('clear');},2700);
+    setTimeout(()=>{
+      G.phase='stageclear';SFX.stageClear();startChip('clear');
+      // 学長の勝利スピーチ
+      const lines=LION_VICTORY_LINES[G.stageIdx]||[];
+      if(lines.length>0){
+        const line=lines[Math.floor(Math.random()*lines.length)];
+        if(SFX&&SFX.speak)SFX.speak(line,{rate:1.1,pitch:0.9,volume:0.9});
+      }
+    },2700);
   }else{nextWord();}
 }
 
