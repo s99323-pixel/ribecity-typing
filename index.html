@@ -725,7 +725,7 @@ const DIFFICULTY_DEFS={
     title:'リベの民',titleCol:'#c0c0c0',
     msg1:'ええやん！もう立派なリベの民や〜',
     msg2:'貯める・稼ぐ・増やす・守る・使う、5つの力を磨いてこな！'},
-  hard:  {label:'HARD',  hpMul:1.45,atkMul:1.30,intervalMul:0.75,playerHp:75,col:'#ff4444',
+  hard:  {label:'HARD',  hpMul:1.25,atkMul:1.10,intervalMul:0.88,playerHp:90,col:'#ff4444',
     title:'経済的自由人 〜FIRE達成〜',titleCol:'#FFD700',
     msg1:'おめでとう！本物の経済的自由人や！',
     msg2:'自由な人生は自分で設計するもんやで〜。借金なんかすんじゃねえ！'},
@@ -2486,8 +2486,8 @@ const LION_HURT_LINES=[
   '諦めたらそこで終わりやで！',
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.6';
-const GAME_LAST_UPDATE='2026-05-14 02:00';
+const GAME_VERSION='v2.6.1';
+const GAME_LAST_UPDATE='2026-05-14 02:15';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
@@ -3161,9 +3161,9 @@ function loop(){
       G.atkTimer--;
       if(G.atkTimer<=0){
         const st=STAGES[G.stageIdx];
-        // 敵ラッシュモード：HP30%以下で攻撃間隔×0.65（商流拳中は通常戻し）
+        // 敵ラッシュモード：HP30%以下で攻撃間隔×0.78（商流拳中は通常戻し）
         const inRush=G.rushActive&&G.shohouIntroTimer<=0&&!G.isShohouMode&&shohouTimer<=0;
-        G.atkTimer=Math.floor(st.atkInterval*(inRush?0.65:1.0));
+        G.atkTimer=Math.floor(st.atkInterval*(inRush?0.78:1.0));
         G.playerHp=Math.max(0,G.playerHp-st.enemyAtk);
         G.playerHurt=20;G.stageNoDamage=false;
         // ラッシュ中なら被弾を強化（攻撃力UPの体感）
@@ -3179,8 +3179,8 @@ function loop(){
           // ラッシュ専用効果音（金属＋詠唱）
           if(SFX&&SFX.missCounterAtk)SFX.missCounterAtk();
           flash(rush?rush.col:'#ff0033',0.55);
-          // 多重ヒット表現：プレイヤー追加ダメージ
-          G.playerHp=Math.max(0,G.playerHp-Math.floor(st.enemyAtk*0.25));
+          // 多重ヒット表現：プレイヤー追加ダメージ（過剰防止のため軽め）
+          G.playerHp=Math.max(0,G.playerHp-Math.floor(st.enemyAtk*0.12));
         }else{
           shake(14);SFX.enemyAtk();wrongBurst(178,202);
           playerDamageVignette=42;addDmgNum(178,168,'被弾！','#ff3366',true);
