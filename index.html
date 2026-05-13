@@ -3459,7 +3459,13 @@ function handleKey(key,code){
   if(code==='Enter'){
     if(G.phase==='disclaimer'){G.phase='modeselect';return;}
     if(G.phase==='modeselect'){G.phase='title';startChip('title');return;}
-    if(G.phase==='title'){stopChip();shohouWordIdx=0;shohouCount=0;G.continuesUsed=0;startStage(0);}
+    if(G.phase==='title'){
+      stopChip();
+      if('speechSynthesis' in window)window.speechSynthesis.cancel();
+      shohouWordIdx=0;shohouCount=0;G.continuesUsed=0;
+      G._bestSaved=false;G._cachedQuote=null;shohouTimer=0;
+      startStage(0);
+    }
     else if(G.phase==='stageclear'){
       if(G.stageIdx<STAGES.length-1){stopChip();startStage(G.stageIdx+1);}
       else{
@@ -3476,7 +3482,13 @@ function handleKey(key,code){
         setTimeout(()=>startChip('clear'),800);
       }
     }
-    else if(G.phase==='gameclear'||G.phase==='gameover'){stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;G.phase='title';startChip('title');}
+    else if(G.phase==='gameclear'||G.phase==='gameover'){
+      stopChip();
+      if('speechSynthesis' in window)window.speechSynthesis.cancel(); // TTS残り音をキャンセル
+      G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;
+      G._bestSaved=false;shohouTimer=0; // QA-B3,B4対策
+      G.phase='title';startChip('title');
+    }
     return;
   }
   // Continue画面: Y=継続 / N or Escape=諦める
