@@ -730,7 +730,7 @@ let selectedDiff='normal';
 const STAGES_BASE=[
   {
     name:'毒キノコ山',enemyName:'毒キノコ男',
-    enemyHp:160,enemyAtk:10,atkInterval:420,wordCount:6,
+    enemyHp:130,enemyAtk:10,atkInterval:480,wordCount:6,
     wordLevel:[0,49],col:'#cc44ff',bgTop:'#0a0018',bgBot:'#150025',
   },
   {
@@ -745,12 +745,12 @@ const STAGES_BASE=[
   },
   {
     name:'悪徳FP事務所',enemyName:'悪徳FPタカハシ',
-    enemyHp:620,enemyAtk:28,atkInterval:220,wordCount:9,
+    enemyHp:560,enemyAtk:28,atkInterval:220,wordCount:9,
     wordLevel:[140,174],col:'#00ccff',bgTop:'#001020',bgBot:'#002040',
   },
   {
     name:'暗黒の頂上',enemyName:'ブラック学長',
-    enemyHp:820,enemyAtk:34,atkInterval:185,wordCount:10,
+    enemyHp:880,enemyAtk:34,atkInterval:185,wordCount:10,
     wordLevel:[175,199],col:'#ff0000',bgTop:'#000000',bgBot:'#100000',
   },
 ];
@@ -2149,6 +2149,40 @@ const SHOHOU_INTRO_LINES=[
   '人脈は最強の資産や！',
   '今この瞬間が、勝負どころや！',
 ];
+// ── 🌟 すばらしいチャレンジ（日替わりお題） ──
+const CHALLENGES=[
+  {id:'speed_master', name:'⚡ スピード王',   desc:'WPM 70以上で1ステージクリア',   reward:5000, check:()=>G.currentWpm>=70&&G.stageIdx>0},
+  {id:'no_damage',    name:'🛡️ 無傷の達人',  desc:'1ステージをノーダメでクリア',   reward:6000, check:()=>G.stageNoDamage&&G.stageIdx>0},
+  {id:'combo30_run',  name:'🔥 コンボマスター',desc:'30コンボを達成',                reward:5000, check:()=>G.comboMax>=30},
+  {id:'badge_full',   name:'🌈 5つの力 全開', desc:'1プレイで全5バッジを点灯',      reward:8000, check:()=>getUnlockedBadges().length>=5},
+  {id:'shohou_triple',name:'⚡ 商流拳の達人', desc:'1プレイで商流拳3回発動',         reward:6000, check:()=>shohouCount>=3},
+  {id:'score50k',     name:'💰 金持ち街道',   desc:'スコア50000突破',                reward:7000, check:()=>G.score>=50000},
+  {id:'pure_warrior', name:'✨ 潔白の戦士',   desc:'借金せずに3ステージ以上クリア', reward:7000, check:()=>G.continuesUsed===0&&G.stageIdx>=2},
+  {id:'all_clear_easy',name:'🌟 完全制覇',    desc:'全5ステージをクリア',            reward:10000,check:()=>G.phase==='gameclear'},
+];
+function getTodayChallenge(){
+  const today=new Date();
+  const seed=today.getFullYear()*10000+(today.getMonth()+1)*100+today.getDate();
+  return CHALLENGES[seed%CHALLENGES.length];
+}
+function getDailyKey(){
+  const t=new Date();
+  return `vitaminD_daily_${t.getFullYear()}_${(t.getMonth()+1)}_${t.getDate()}`;
+}
+function isDailyDone(){try{return !!localStorage.getItem(getDailyKey());}catch(e){return false;}}
+function markDailyDone(challenge){
+  try{localStorage.setItem(getDailyKey(),challenge.id);}catch(e){}
+  unlockAchievement('daily');
+  G.score+=challenge.reward;
+  showLionQuote('🌟 デイリー達成！+'+challenge.reward+'pt',{duration:300,col:'#fff',bg:'rgba(40,80,40,0.96)'});
+  flash('#88ff88',0.7);
+  for(let i=0;i<32;i++)setTimeout(()=>coinBurst(rand(W*0.2,W*0.8),rand(H*0.2,H*0.7)),i*40);
+}
+function checkDailyChallenge(){
+  if(isDailyDone())return;
+  const ch=getTodayChallenge();
+  if(ch.check())markDailyDone(ch);
+}
 let titleQuoteScroll=0;
 function drawTitle(){
   const t=G.frameN;
@@ -2220,6 +2254,25 @@ function drawTitle(){
   ctx.fillText(`BEST: ${hs.score}pts  MAX COMBO: ${hs.combo}`,W/2,H-38);
   const unlocked=getAchievements();
   ctx.fillStyle='rgba(130,130,165,0.5)';ctx.font='9px monospace';ctx.fillText(`実績: ${unlocked.length}/${ACHIEVEMENTS.length}`,W/2,H-24);
+  // ── 🌟 今日のチャレンジ表示 ──
+  {
+    const ch=getTodayChallenge();
+    const done=isDailyDone();
+    const cy=H-208;
+    ctx.save();
+    const cw=400,cx=W/2-cw/2;
+    ctx.fillStyle=done?'rgba(30,80,40,0.85)':'rgba(60,40,10,0.9)';
+    ctx.strokeStyle=done?'rgba(150,255,180,0.95)':'rgba(255,200,80,0.95)';
+    ctx.lineWidth=1.8;ctx.shadowBlur=10;ctx.shadowColor=done?'#88ff88':'#FFD700';
+    ctx.beginPath();ctx.roundRect(cx,cy,cw,42,10);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+    ctx.textAlign='center';
+    ctx.fillStyle=done?'#88ff88':'#FFD700';
+    ctx.font='bold 11px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillText(`🌟 今日のすばらしいチャレンジ ${done?'✅ 達成済':''}`,W/2,cy+15);
+    ctx.fillStyle='#fff';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillText(`${ch.name}：${ch.desc}（+${ch.reward}pt）`,W/2,cy+34);
+    ctx.restore();
+  }
   // ── 5つの力バッジ（タイトル下部・大型表示）──
   {
     const badgeSize=44,gap=10;
@@ -2781,7 +2834,7 @@ function processWordComplete(word){
   if(G.currentWpm>=60)unlockAchievement('wpm60');
   if(G.currentWpm>=80)unlockAchievement('wpm80');
   if(G.currentWpm>=100)unlockAchievement('wpm100');
-  const comboBonus=Math.min(G.combo,10)*4;
+  const comboBonus=Math.min(G.combo,20)*3;
   const perKeyDealt=Math.floor(word.dmg/word.word.length)*word.word.length;
   const finishBonus=word.dmg-perKeyDealt+comboBonus;
   let dmg=Math.max(finishBonus,comboBonus+5);
@@ -2836,8 +2889,9 @@ function processWordComplete(word){
     const lines=LION_COMBO_LINES[50];showLionQuote(lines[Math.floor(Math.random()*lines.length)]);
   }
   if(G.combo===100){SFX.combo100();comboBurst(W/2,H/2,100);flash('#ff66ff',1.0);}
+  checkDailyChallenge();
   const prevGauge=G.superGauge;
-  G.superGauge=Math.min(100,G.superGauge+14+Math.min(G.combo,6)*4);
+  G.superGauge=Math.min(100,G.superGauge+10+Math.min(G.combo,8)*3);
   if(prevGauge<100&&G.superGauge>=100){SFX.gaugeFull();G.shohouIntroTimer=90;}
   if(G.enemyHp<=0){
     G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
