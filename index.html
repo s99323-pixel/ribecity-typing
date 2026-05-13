@@ -270,6 +270,8 @@ const ACHIEVEMENTS=[
   {id:'samurai',name:'武士道',desc:'Hardで継続せず潔く敗北'},
   {id:'perfect5',name:'パーフェクト5連',desc:'5連続でPERFECT WORD達成'},
   {id:'miracle',name:'奇跡の復活',desc:'倒れる寸前で立ち上がった！'},
+  {id:'oni_unlocked',name:'👹 鬼モード解放',desc:'HARDをクリアした！'},
+  {id:'oni_clear',name:'⚡ 鬼神',desc:'鬼キル鬼デスモードを制覇！'},
 ];
 // ── 5つの力バッジ（貯・稼・増・守・使）──
 const POWER_BADGES=[
@@ -729,6 +731,10 @@ const DIFFICULTY_DEFS={
     title:'経済的自由人 〜FIRE達成〜',titleCol:'#FFD700',
     msg1:'おめでとう！本物の経済的自由人や！',
     msg2:'自由な人生は自分で設計するもんやで〜。借金なんかすんじゃねえ！'},
+  oni:   {label:'👹 鬼',  hpMul:0.55,atkMul:3.0,intervalMul:0.55,playerHp:40,col:'#ff00ff',
+    title:'⚡ 鬼神 〜経済自由を超越せし者〜',titleCol:'#ff66ff',
+    msg1:'お前は…もう人間やない！',
+    msg2:'鬼神の領域や。誰もここまで来れんで…君は伝説や。'},
 };
 let selectedDiff='normal';
 
@@ -2435,7 +2441,15 @@ function drawModeSelect(){
 }
 
 // ── タイトル画面（格好良くリニューアル）──
-const DIFF_OPTS=['easy','normal','hard'];
+// 鬼モードはHARDクリア後に解放（ブラウザ個別のlocalStorage管理）
+function isOniUnlocked(){try{return localStorage.getItem('vitaminD_oniUnlocked')==='1';}catch(e){return false;}}
+function unlockOniMode(){
+  if(isOniUnlocked())return;
+  try{localStorage.setItem('vitaminD_oniUnlocked','1');}catch(e){}
+  unlockAchievement('oni_unlocked');
+}
+function getDiffOpts(){return isOniUnlocked()?['easy','normal','hard','oni']:['easy','normal','hard'];}
+const DIFF_OPTS=['easy','normal','hard']; // 互換のため残存（getDiffOptsを優先）
 const TITLE_QUOTES=[
   '今日が人生で一番若い日！',
   '借金なんかすんじゃねえ！',
@@ -2486,8 +2500,8 @@ const LION_HURT_LINES=[
   '諦めたらそこで終わりやで！',
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.6.1';
-const GAME_LAST_UPDATE='2026-05-14 02:15';
+const GAME_VERSION='v2.7';
+const GAME_LAST_UPDATE='2026-05-14 02:30';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
@@ -2661,18 +2675,44 @@ function drawTitle(){
   ctx.fillText('TYPING FIGHTER',W/2,H/2+16);ctx.shadowBlur=0;
   // サブコピー
   ctx.fillStyle='rgba(180,160,255,0.8)';ctx.font='13px monospace';
-  ctx.fillText('〜 全5ステージ・お金持ち山を目指せ！〜',W/2,H/2+44);
-  // 難易度ボタン
-  const btnW=92,btnH=30,btnY=H/2+66,gap=12;const totalBtnW=DIFF_OPTS.length*(btnW+gap)-gap;
-  DIFF_OPTS.forEach((d,i)=>{
+  ctx.fillText(isOniUnlocked()?'〜 全5ステージ + 👹隠し鬼モード解禁中 〜':'〜 全5ステージ・お金持ち山を目指せ！〜',W/2,H/2+44);
+  // 難易度ボタン（鬼モードがあれば4個、なければ3個）
+  const opts=getDiffOpts();
+  const btnW=opts.length>=4?76:92,btnH=30,btnY=H/2+66,gap=10;
+  const totalBtnW=opts.length*(btnW+gap)-gap;
+  opts.forEach((d,i)=>{
     const dd=DIFFICULTY_DEFS[d];const bx=W/2-totalBtnW/2+i*(btnW+gap);const sel=selectedDiff===d;
-    ctx.fillStyle=sel?dd.col:'rgba(20,20,40,0.92)';ctx.strokeStyle=sel?dd.col:'rgba(150,150,185,0.4)';ctx.lineWidth=sel?2.2:1;
+    const isOni=d==='oni';
+    // 鬼モードは脈動表現
+    if(isOni){
+      const pulse=Math.sin(t*0.1)*0.4+0.6;
+      ctx.shadowBlur=sel?28*pulse:14*pulse;ctx.shadowColor='#ff00ff';
+    }
+    ctx.fillStyle=sel?dd.col:'rgba(20,20,40,0.92)';ctx.strokeStyle=sel?dd.col:(isOni?'rgba(255,0,255,0.8)':'rgba(150,150,185,0.4)');ctx.lineWidth=sel?2.2:(isOni?1.5:1);
     ctx.shadowBlur=sel?18:0;ctx.shadowColor=dd.col;
     ctx.beginPath();ctx.roundRect(bx,btnY,btnW,btnH,8);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
-    ctx.fillStyle=sel?'#000':'rgba(200,200,222,0.85)';ctx.font=`bold ${sel?13:11}px monospace`;ctx.textAlign='center';
+    ctx.fillStyle=sel?'#000':(isOni?'#ff66ff':'rgba(200,200,222,0.85)');
+    ctx.font=`bold ${sel?12:10}px "Hiragino Sans","Yu Gothic",monospace`;ctx.textAlign='center';
     ctx.fillText(dd.label,bx+btnW/2,btnY+20);
   });
   ctx.fillStyle='rgba(140,140,175,0.5)';ctx.font='9px monospace';ctx.textAlign='center';ctx.fillText('← → で難易度選択',W/2,H/2+108);
+  // 鬼モード未解放時のヒント表示（含みを持たせる）
+  if(!isOniUnlocked()){
+    const hintBlink=0.5+0.5*Math.sin(t*0.07);
+    ctx.fillStyle=`rgba(255,80,180,${0.35+0.4*hintBlink})`;
+    ctx.font='bold 9px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.shadowBlur=10*hintBlink;ctx.shadowColor='#ff00ff';
+    ctx.fillText('👹 ???モードは謎に包まれている… [HARD FIRE達成で解放]',W/2,H/2+122);
+    ctx.shadowBlur=0;
+  }else{
+    // 解放済みなら自慢気な表記
+    const proudBlink=0.6+0.4*Math.sin(t*0.1);
+    ctx.fillStyle=`rgba(255,0,255,${proudBlink})`;
+    ctx.font='bold 9px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.shadowBlur=8;ctx.shadowColor='#ff00ff';
+    ctx.fillText('👹 鬼キル鬼デスモード 解放中！',W/2,H/2+122);
+    ctx.shadowBlur=0;
+  }
   // PRESS ENTER（派手にパルス）
   if(Math.floor(t/22)%2===0){
     const pe=`hsl(${(t*2)%360},100%,75%)`;
@@ -3373,7 +3413,19 @@ function handleKey(key,code){
     if(G.phase==='title'){stopChip();shohouWordIdx=0;shohouCount=0;G.continuesUsed=0;startStage(0);}
     else if(G.phase==='stageclear'){
       if(G.stageIdx<STAGES.length-1){stopChip();startStage(G.stageIdx+1);}
-      else{stopChip();G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);unlockAchievement('allclear');checkDailyChallenge();setTimeout(()=>startChip('clear'),800);}
+      else{
+        stopChip();G.phase='gameclear';SFX.clear();saveHS(G.score,G.comboMax);
+        unlockAchievement('allclear');checkDailyChallenge();
+        // HARDクリアで鬼モード解放
+        if(selectedDiff==='hard'){
+          unlockOniMode();
+          // タイトル戻り後の鬼モード告知のため一時保持
+          G._oniJustUnlocked=true;
+        }
+        // 鬼モードクリアで oni_clear 解除
+        if(selectedDiff==='oni'){unlockAchievement('oni_clear');}
+        setTimeout(()=>startChip('clear'),800);
+      }
     }
     else if(G.phase==='gameclear'||G.phase==='gameover'){stopChip();G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;G.phase='title';startChip('title');}
     return;
@@ -3392,9 +3444,10 @@ function handleKey(key,code){
     startStage(G.stageIdx);return;
   }
   if(G.phase==='title'){
-    const idx=DIFF_OPTS.indexOf(selectedDiff);
-    if(code==='ArrowRight'){selectedDiff=DIFF_OPTS[(idx+1)%DIFF_OPTS.length];SFX.diffChange(selectedDiff);return;}
-    if(code==='ArrowLeft'){selectedDiff=DIFF_OPTS[(idx+DIFF_OPTS.length-1)%DIFF_OPTS.length];SFX.diffChange(selectedDiff);return;}
+    const opts=getDiffOpts();
+    const idx=opts.indexOf(selectedDiff);
+    if(code==='ArrowRight'){selectedDiff=opts[(idx+1)%opts.length];SFX.diffChange(selectedDiff);return;}
+    if(code==='ArrowLeft'){selectedDiff=opts[(idx+opts.length-1)%opts.length];SFX.diffChange(selectedDiff);return;}
   }
   if(G.phase!=='fight')return;
   if(G.hitstop>0||G.shohouIntroTimer>0)return;
@@ -3641,9 +3694,11 @@ cvs.addEventListener('click',e=>{
   if(G.phase==='title'){
     const rect=cvs.getBoundingClientRect();const scaleX=W/rect.width,scaleY=H/rect.height;
     const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
-    const btnW=92,btnH=30,btnY=H/2+66,gap=12;const totalBtnW=DIFF_OPTS.length*(btnW+gap)-gap;
+    const opts=getDiffOpts();
+    const btnW=opts.length>=4?76:92,btnH=30,btnY=H/2+66,gap=10;
+    const totalBtnW=opts.length*(btnW+gap)-gap;
     let clicked=false;
-    DIFF_OPTS.forEach((d,i)=>{const bx=W/2-totalBtnW/2+i*(btnW+gap);if(mx>=bx&&mx<=bx+btnW&&my>=btnY&&my<=btnY+btnH){selectedDiff=d;SFX.diffChange(d);clicked=true;}});
+    opts.forEach((d,i)=>{const bx=W/2-totalBtnW/2+i*(btnW+gap);if(mx>=bx&&mx<=bx+btnW&&my>=btnY&&my<=btnY+btnH){selectedDiff=d;SFX.diffChange(d);clicked=true;}});
     if(!clicked){SFX.uiSelect();shohouWordIdx=0;shohouCount=0;startStage(0);}
   }
 });
