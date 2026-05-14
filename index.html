@@ -1500,6 +1500,10 @@ function startStage(idx){
   const db=(inputMode==='smartphone'&&idx===0)?WORD_DB_KANA:WORD_DB;
   const pool=[...db].slice(lo,Math.min(hi+1,db.length)).sort(()=>Math.random()-0.5);
   G.wordQueue=pool.slice(0,st.wordCount).sort((a,b)=>a.word.length-b.word.length);
+  // ボスフレーズを最終ワードに差し替え（PCモードのみ・スマホ1面はキープ）
+  if(!(inputMode==='smartphone'&&idx===0)&&BOSS_PHRASES[idx]){
+    G.wordQueue[G.wordQueue.length-1]=BOSS_PHRASES[idx];
+  }
   G.wordsLeft=G.wordQueue.length;G.flickTyped='';
   nextWord();
   G.playerHp=dd.playerHp;G.playerMaxHp=dd.playerHp;G.dispPlayerHp=dd.playerHp;
@@ -1996,7 +2000,8 @@ function drawHUD(){
 function drawWordPanel(){
   const word=G.isShohouMode?G.shohouWord:G.currentWord;
   if(!word)return;
-  const pw=460,ph=G.isShohouMode?130:110,px=W/2-pw/2,py=H-138-(G.isShohouMode?15:0);
+  const isBoss=word&&word.isBoss&&!G.isShohouMode;
+  const pw=isBoss?520:460,ph=G.isShohouMode?130:(isBoss?120:110),px=W/2-pw/2,py=H-138-(G.isShohouMode?15:0)-(isBoss?6:0);
   // ── グラスモーフィズム（半透明＋光沢ハイライト＋ボケ枠）──
   ctx.save();
   // 多層背景：奥のぼかしグラデ
@@ -2038,6 +2043,20 @@ function drawWordPanel(){
     panelFlashTimer--;
   }
   ctx.restore();
+  // 🔥 ボスフレーズ告知ヘッダ
+  if(isBoss){
+    const blink=Math.floor(G.frameN/16)%2===0;
+    ctx.save();
+    ctx.fillStyle=blink?'rgba(255,40,80,0.95)':'rgba(120,20,40,0.95)';
+    ctx.shadowBlur=blink?22:10;ctx.shadowColor='#ff3366';
+    ctx.beginPath();ctx.roundRect(px,py-36,pw,32,8);ctx.fill();
+    ctx.strokeStyle='#ffaaaa';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect(px,py-36,pw,32,8);ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#fff';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';
+    ctx.fillText('🔥 ボスフレーズ！ノーミスで打ち抜け！🔥',W/2,py-15);
+    ctx.restore();
+  }
   if(G.isShohouMode){
     const blink=Math.floor(G.frameN/18)%2===0;
     ctx.fillStyle='rgba(0,0,0,0.7)';ctx.beginPath();ctx.roundRect(px,py-36,pw,32,8);ctx.fill();
@@ -2482,18 +2501,18 @@ function drawDisclaimer(){
   ctx.fillText('⚠️  非公式ファンゲーム  ⚠️',W/2,28);
   // 本文
   const lines=[
-    {t:'── 免責事項 ──',s:13,c:'#FFD700',b:true,y:52},
-    {t:'① 本作は二次創作の非公式ファンゲーム',s:10,c:'#ffee88',b:true,y:72},
+    {t:'── ご案内 ──',s:13,c:'#FFD700',b:true,y:52},
+    {t:'① 本作は二次創作の非公式ファンゲームです',s:10,c:'#ffee88',b:true,y:72},
     {t:'② リベラルアーツ大学様の公式・公認・監修ではありません',s:9,c:'#ccccff',b:false,y:88},
     {t:'③ © リベラルアーツ大学 の著作物を含みます',s:9,c:'#ccccff',b:false,y:102},
-    {t:'④ リベ著作物ガイドラインに基づき非営利・無料で運用',s:9,c:'#ccccff',b:false,y:116},
-    {t:'⑤ SNS拡散・実況配信・SS投稿はお控えください',s:10,c:'#ff8866',b:true,y:134},
-    {t:'   （個人プレイ・身近な友人内のみで楽しむ）',s:9,c:'#ffaaaa',b:false,y:148},
+    {t:'④ 著作物ガイドラインに基づき非営利・無料で運用',s:9,c:'#ccccff',b:false,y:116},
+    {t:'⑤ 実況配信・大規模拡散はお控えください',s:10,c:'#ff8866',b:true,y:134},
+    {t:'   （個人プレイ・小規模シェア向けのファン作品）',s:9,c:'#ffaaaa',b:false,y:148},
     {t:'⑥ 個人情報は収集しません（記録は端末内のみ）',s:9,c:'#aaeebb',b:false,y:164},
     {t:'⑦ 不具合・損害について作者は責任を負いません',s:9,c:'#aaeebb',b:false,y:178},
     {t:'⑧ 権利者様より要請があれば速やかに公開停止します',s:9,c:'#aaeebb',b:false,y:192},
     {t:'⑨ 🤖 Claude Code 学習目的の個人制作物です',s:10,c:'#88ffcc',b:true,y:210},
-    {t:'BGM・SE は各配布元ライセンスに従い使用',s:8,c:'rgba(180,180,200,0.65)',b:false,y:226},
+    {t:'BGM・SEは各配布元ライセンスに従い使用',s:8,c:'rgba(180,180,200,0.65)',b:false,y:226},
   ];
   lines.forEach(l=>{
     ctx.font=`${l.b?'bold ':''} ${l.s}px "Hiragino Sans","Yu Gothic",monospace`;
@@ -2755,6 +2774,14 @@ const ENEMY_RUSH={
   3:{name:'手数料ラッシュ',    icon:'💸',col:'#00ccff',quote:'手数料で吸い尽くす！'},
   4:{name:'先延ばしラッシュ',  icon:'😈',col:'#ff0000',quote:'明日からでええやろ？'},
 };
+// ── 🔥 ボスフレーズ（ステージ最終ワード・長文ミス不可）──
+const BOSS_PHRASES=[
+  {word:'kinokoyamadekogane',jp:'🍄 毒キノコ山を越えて小金持ち街道へ！',dmg:80,isBoss:true},
+  {word:'sagishiwomihayabuchikara',jp:'💰 詐欺師を見抜く力を身につけよ！',dmg:120,isBoss:true},
+  {word:'hokenwoyamerebajiyu',jp:'🛡️ 不要な保険をやめれば自由になれる！',dmg:160,isBoss:true},
+  {word:'indexfundsaikyou',jp:'📈 インデックスファンドが最強なんや！',dmg:200,isBoss:true},
+  {word:'kyougajinseideichibanwakaihi',jp:'🔥 今日が人生で一番若い日や！',dmg:280,isBoss:true},
+];
 // ── 商流拳発動時の前口上（SHOHOU_WORDS順）──
 const SHOHOU_INTRO_LINES=[
   '不要な保険、ぶっ飛ばすで！',
@@ -3175,10 +3202,16 @@ function drawGameClear(){
     ctx.fillText(s.v,x+4,y);
   });
   ctx.textAlign='center';
+  // 🌐 Top X% 表示（10FastFingers式）
+  const wpmTier=G.currentWpm>=120?'TOP 0.5%':G.currentWpm>=100?'TOP 2%':G.currentWpm>=80?'TOP 5%':G.currentWpm>=60?'TOP 15%':G.currentWpm>=40?'TOP 40%':'TOP 60%';
+  ctx.fillStyle='rgba(180,255,180,0.9)';ctx.font='bold 11px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.shadowBlur=6;ctx.shadowColor='#88ff88';
+  ctx.fillText(`📊 あなたのWPMは全プレイヤー ${wpmTier} 相当！`,W/2,H/2+72);
+  ctx.shadowBlur=0;
   // 操作ガイド
   if(Math.floor(G.frameN/30)%2===0){
     ctx.fillStyle='#aaa';ctx.font='11px monospace';
-    ctx.fillText('[ Enter でタイトル ／ R で同ステージ即リスタート ]',W/2,H/2+90);
+    ctx.fillText('[ Enter/Esc=タイトル ／ R=同ステージ即リスタート ]',W/2,H/2+90);
   }
   // ベストスコア更新を記録
   if(isNewBest&&!G._bestSaved){
@@ -3325,8 +3358,78 @@ function declineContinue(){
   G.phase='gameover';saveHS(G.score,G.comboMax);startChip('gameover');
   unlockAchievement(conf.declineAch);
 }
+// ── 💸 貧乏谷イラスト（GAME OVER画面背景）──
+function drawPovertyValley(t){
+  // 鈍色の空（曇天）
+  const sky=ctx.createLinearGradient(0,0,0,H*0.6);
+  sky.addColorStop(0,'#1a1418');sky.addColorStop(1,'#3d2a2e');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+  // 雨（縦線）
+  ctx.strokeStyle='rgba(140,150,170,0.35)';ctx.lineWidth=1;
+  for(let i=0;i<70;i++){
+    const rx=((i*97+t*0.6)%W);const ry=((i*131+t*3)%H);
+    ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx+3,ry+12);ctx.stroke();
+  }
+  // 谷の輪郭（V字）
+  const valleyTop=H*0.42,valleyBottom=H*0.95,valleyW=W*0.6,valleyCx=W/2;
+  ctx.fillStyle='rgba(20,12,16,0.85)';
+  ctx.beginPath();
+  ctx.moveTo(0,valleyTop);
+  ctx.lineTo(valleyCx-valleyW/2,valleyTop);
+  ctx.lineTo(valleyCx,valleyBottom);
+  ctx.lineTo(valleyCx+valleyW/2,valleyTop);
+  ctx.lineTo(W,valleyTop);
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
+  // 谷縁のリムライト（赤紫）
+  ctx.strokeStyle='rgba(180,60,80,0.7)';ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(0,valleyTop);
+  ctx.lineTo(valleyCx-valleyW/2,valleyTop);
+  ctx.lineTo(valleyCx,valleyBottom);
+  ctx.lineTo(valleyCx+valleyW/2,valleyTop);
+  ctx.lineTo(W,valleyTop);
+  ctx.stroke();
+  // 谷壁の赤い警告旗（マイナス額）
+  const flags=[
+    {x:valleyCx-150,y:valleyTop+50,label:'-100万', col:'#aa3344'},
+    {x:valleyCx+120,y:valleyTop+95, label:'-300万',col:'#aa3344'},
+    {x:valleyCx-90, y:valleyTop+140,label:'-500万',col:'#aa3344'},
+    {x:valleyCx+60, y:valleyTop+180,label:'借金1000万!',col:'#cc1133'},
+  ];
+  flags.forEach((f,i)=>{
+    const wave=Math.sin(t*0.05+i)*2;
+    ctx.strokeStyle='#3a2a1a';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(f.x,f.y);ctx.lineTo(f.x,f.y-18);ctx.stroke();
+    ctx.fillStyle=f.col;
+    ctx.beginPath();ctx.moveTo(f.x,f.y-18);ctx.lineTo(f.x+16+wave,f.y-14);ctx.lineTo(f.x,f.y-8);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 7px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='left';
+    ctx.fillText(f.label,f.x+1,f.y-10);
+  });
+  // 飛び去る紙幣（お金が逃げる）
+  for(let i=0;i<16;i++){
+    const fx=((i*73+t*0.8)%W);
+    const fy=((i*131+t*2.2)%H);
+    const rot=(i+t*0.02);
+    ctx.save();ctx.translate(fx,fy);ctx.rotate(rot);
+    ctx.fillStyle='rgba(120,100,80,0.4)';
+    ctx.fillRect(-6,-3,12,6);
+    ctx.fillStyle='rgba(160,140,110,0.4)';
+    ctx.font='6px monospace';ctx.textAlign='center';ctx.fillText('¥',0,2);
+    ctx.restore();
+  }
+  // 谷底に学長シルエット（座り込んでる風）
+  ctx.fillStyle='rgba(40,30,35,0.95)';
+  ctx.beginPath();
+  ctx.arc(valleyCx,valleyBottom-30,16,0,Math.PI*2);ctx.fill();
+  ctx.fillRect(valleyCx-22,valleyBottom-12,44,8);
+  // 中央テキスト視認帯
+  const veil=ctx.createLinearGradient(0,H*0.25,0,H*0.75);
+  veil.addColorStop(0,'rgba(0,0,0,0)');veil.addColorStop(0.5,'rgba(0,0,0,0.55)');veil.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=veil;ctx.fillRect(0,H*0.25,W,H*0.50);
+}
 function drawGameOver(){
-  ctx.fillStyle='rgba(0,0,0,0.85)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
+  drawPovertyValley(G.frameN);
+  ctx.textAlign='center';
   // 📚 GAME OVER画面でも名言（励まし）
   const q=pickBookQuote();
   ctx.fillStyle='rgba(255,240,200,0.85)';ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
@@ -3334,7 +3437,9 @@ function drawGameOver(){
   ctx.fillText(`📚「${q.quote}」`,W/2,H-72);ctx.shadowBlur=0;
   ctx.fillStyle='rgba(200,200,225,0.65)';ctx.font='10px "Hiragino Sans","Yu Gothic",monospace';
   ctx.fillText(`― ${q.book}（${q.author}）`,W/2,H-56);
-  ctx.shadowBlur=28;ctx.shadowColor='#5555ff';ctx.fillStyle='#4466ff';ctx.font='bold 60px monospace';ctx.fillText('GAME OVER',W/2,H/2-18);ctx.shadowBlur=0;
+  ctx.shadowBlur=28;ctx.shadowColor='#ff3366';ctx.fillStyle='#ff5577';ctx.font='bold 54px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('💸 貧乏谷へ転落…',W/2,H/2-18);ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,180,180,0.85)';ctx.font='bold 12px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText('お金の勉強をしなおして再挑戦せよ！',W/2,H/2+2);
   // スコアと「あと一歩」演出
   const hs=loadHS();const bestDiff=hs.score-G.score;
   ctx.fillStyle='#aaa';ctx.font='14px monospace';ctx.fillText(`SCORE: ${G.score}`,W/2,H/2+22);
@@ -3347,7 +3452,7 @@ function drawGameOver(){
   }
   if(Math.floor(G.frameN/30)%2===0){
     ctx.fillStyle='#aaa';ctx.font='12px monospace';
-    ctx.fillText('[ Enter でタイトル ／ R で即リスタート ]',W/2,H/2+68);
+    ctx.fillText('[ Enter/Esc=タイトル ／ R=即リスタート ]',W/2,H/2+68);
   }
 }
 function drawPause(){
@@ -3622,6 +3727,14 @@ function handleKey(key,code){
   if(code==='Escape'){
     if(G.phase==='fight'){G.phase='paused';stopBGM();}
     else if(G.phase==='paused'){G.phase='resuming';G.resumeCountdown=180;startBGM();}
+    // ESC即リトライ（MonkeyType式）：gameover/gameclearからEsc1回押しでタイトルへ
+    else if(G.phase==='gameover'||G.phase==='gameclear'){
+      stopChip();stopBGM();
+      if('speechSynthesis' in window)window.speechSynthesis.cancel();
+      G.playerHp=G.playerMaxHp;G.score=0;G.comboMax=0;G.continuesUsed=0;
+      G._bestSaved=false;G._cachedQuote=null;shohouTimer=0;
+      G.phase='title';startChip('title');
+    }
     return;
   }
   if(code==='Enter'){
