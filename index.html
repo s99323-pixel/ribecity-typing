@@ -1092,6 +1092,46 @@ function onKeyHit(){
   panelFlashTimer=8;
   comboPulseTimer=10;
 }
+// 🔨 STREAK BROKEN演出（Nitro Type＋キーボードクラッシャー融合）
+let streakBreakTimer=0;
+let streakBreakCombo=0;
+function streakBreakCheck(comboAtBreak){
+  if(comboAtBreak>=10){
+    streakBreakTimer=70;
+    streakBreakCombo=comboAtBreak;
+    flash('#ff3344',0.6);
+    // 中量〜大量のクラッシュ
+    if(comboAtBreak>=50){
+      shake(18);
+      if(SFX&&SFX.missCounterAtk)SFX.missCounterAtk();
+    }
+  }
+}
+function drawStreakBreak(){
+  if(streakBreakTimer<=0)return;
+  streakBreakTimer--;
+  const t=streakBreakTimer,mt=70;
+  const age=mt-t;
+  const fadeOut=t<20?t/20:1;
+  ctx.save();
+  ctx.globalAlpha=fadeOut;
+  ctx.textAlign='center';
+  // ガラス割れ風の影レイヤー
+  for(let i=0;i<3;i++){
+    const ox=(Math.random()-0.5)*10,oy=(Math.random()-0.5)*10;
+    ctx.fillStyle=`rgba(255,${40+i*30},60,0.5)`;
+    ctx.shadowBlur=18;ctx.shadowColor='#ff0033';
+    ctx.font='bold 38px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillText('STREAK BROKEN！',W/2+ox,H/2-40+oy);
+  }
+  ctx.fillStyle='#fff';ctx.shadowColor='#ff3366';
+  ctx.fillText('STREAK BROKEN！',W/2,H/2-40);
+  ctx.font='bold 16px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillStyle='#ff6688';
+  ctx.fillText(`${streakBreakCombo}コンボが途切れた…`,W/2,H/2-10);
+  ctx.shadowBlur=0;
+  ctx.restore();
+}
 // 打鍵速度に応じたダメージ倍率（タグ付き）
 function calcSpeedDmgMul(){
   const now=performance.now();
@@ -2510,9 +2550,9 @@ const LION_VICTORY_LINES=[
   ['ブラック学長を倒した！','お前はもう本物の自由人や！','「今日が人生で一番若い日」や！'],
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.8';
+const GAME_VERSION='v2.9';
 // 最終更新時刻（手動更新・JST 日本時間）
-const GAME_LAST_UPDATE='2026-05-14 05:30 JST';
+const GAME_LAST_UPDATE='2026-05-14 06:00 JST';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
@@ -2845,26 +2885,54 @@ function drawTitle(){
 }
 
 // ── ステージクリア ──
+// ── 3つ星評価（TypingClub式・パクリ研究③TOP1）──
+function calcStarRating(){
+  // 速度★: WPM/精度: ミス無し/コンボ★: 最大コンボ
+  const wpm=G.currentWpm||0;
+  const noDamage=G.stageNoDamage;
+  const maxCombo=G.comboMax||0;
+  const speedStar=wpm>=60?'★':'☆';
+  const accStar=noDamage?'★':'☆';
+  const comboStar=maxCombo>=15?'★':'☆';
+  const count=(wpm>=60?1:0)+(noDamage?1:0)+(maxCombo>=15?1:0);
+  return {speed:speedStar,acc:accStar,combo:comboStar,count};
+}
 function drawStageClear(){
   ctx.fillStyle='rgba(0,0,10,0.75)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';
   const st=STAGES[G.stageIdx];
-  ctx.shadowBlur=32;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';ctx.font='bold 46px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('STAGE CLEAR!',W/2,H/2-52);ctx.shadowBlur=0;
-  ctx.fillStyle='#fff';ctx.font='18px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(`${st.enemyName}を倒した！`,W/2,H/2-4);
+  ctx.shadowBlur=32;ctx.shadowColor='#FFD700';ctx.fillStyle='#FFD700';ctx.font='bold 42px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText('STAGE CLEAR!',W/2,H/2-78);ctx.shadowBlur=0;
+  ctx.fillStyle='#fff';ctx.font='16px "Hiragino Sans","Yu Gothic",monospace';ctx.fillText(`${st.enemyName}を倒した！`,W/2,H/2-50);
+  // 3つ星評価
+  const r=calcStarRating();
+  ctx.shadowBlur=14;ctx.shadowColor='#FFD700';
+  ctx.font='bold 32px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillStyle=r.count>=3?'#FFD700':(r.count>=2?'#ffaa00':'#aaa');
+  ctx.fillText(`${r.speed} ${r.acc} ${r.combo}`,W/2,H/2-12);
+  ctx.shadowBlur=0;
+  // 評価内訳
+  ctx.fillStyle='rgba(200,210,255,0.85)';ctx.font='10px "Hiragino Sans","Yu Gothic",monospace';
+  ctx.fillText(`速度:${r.speed} (WPM ${G.currentWpm||0}≥60)  精度:${r.acc} (ノーダメ)  コンボ:${r.combo} (最大${G.comboMax}≥15)`,W/2,H/2+8);
+  // 称号
+  if(r.count===3){
+    const proud=Math.sin(G.frameN*0.18)*0.3+0.7;
+    ctx.fillStyle=`rgba(255,215,0,${proud})`;ctx.font='bold 13px "Hiragino Sans","Yu Gothic",monospace';
+    ctx.fillText('🌟 PERFECT STAGE！',W/2,H/2+28);
+  }
+  // 敵セリフ
   const lines=ENEMY_LINES[G.stageIdx]||[];
   if(lines.length>0){
     const lineIdx=Math.floor(G.frameN/110)%lines.length;const msg=lines[lineIdx];
-    const bw=Math.min(380,ctx.measureText(msg).width+44);const bx=W/2-bw/2,by=H/2+22;
-    ctx.fillStyle='rgba(255,255,255,0.93)';ctx.strokeStyle='rgba(200,180,255,0.55)';ctx.lineWidth=1.5;ctx.shadowBlur=7;ctx.shadowColor='rgba(180,140,255,0.45)';
-    ctx.beginPath();ctx.roundRect(bx,by,bw,34,9);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
-    ctx.fillStyle='rgba(255,255,255,0.93)';ctx.beginPath();ctx.moveTo(W/2-10,by+34);ctx.lineTo(W/2,by+48);ctx.lineTo(W/2+10,by+34);ctx.closePath();ctx.fill();
-    ctx.fillStyle='#220033';ctx.font='bold 12px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';ctx.fillText(msg,W/2,by+23);
+    const bw=Math.min(380,ctx.measureText(msg).width+44);const bx=W/2-bw/2,by=H/2+44;
+    ctx.fillStyle='rgba(255,255,255,0.93)';ctx.strokeStyle='rgba(200,180,255,0.55)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect(bx,by,bw,26,8);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#220033';ctx.font='bold 11px "Hiragino Sans","Yu Gothic",monospace';ctx.textAlign='center';ctx.fillText(msg,W/2,by+18);
   }
-  // 次のステージ情報
+  // 次ステージ情報
   if(G.stageIdx<STAGES.length-1){
     const next=STAGES[G.stageIdx+1];
-    ctx.fillStyle='rgba(100,200,255,0.7)';ctx.font='11px monospace';ctx.fillText(`NEXT → ${next.enemyName}`,W/2,H/2+72);
+    ctx.fillStyle='rgba(100,200,255,0.7)';ctx.font='10px monospace';ctx.fillText(`NEXT → ${next.enemyName}`,W/2,H/2+84);
   }
-  if(Math.floor(G.frameN/25)%2===0){ctx.fillStyle='#aaa';ctx.font='13px monospace';ctx.fillText('[ Enter で次のステージへ ]',W/2,H/2+88);}
+  if(Math.floor(G.frameN/25)%2===0){ctx.fillStyle='#aaa';ctx.font='12px monospace';ctx.fillText('[ Enter で次のステージへ ]',W/2,H/2+100);}
 }
 
 // ── 金持ち山イラスト（クリア画面背景）──
@@ -3343,6 +3411,7 @@ function loop(){
     drawLionQuote();checkLionHurtQuote();
     if(flashA>0.01){ctx.globalAlpha=flashA;ctx.fillStyle=flashC;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
     drawLowHpVignette();drawDamageVignette();drawEnemyRush();drawRainbowOverlay();
+    drawStreakBreak();
     drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();
   }
   else if(G.phase==='paused'){drawBG();drawLion(178,222,'idle');drawEnemy(542,222,'idle');drawHUD();drawWordPanel();drawPause();drawAchievements();drawCenterBadgePop();drawNonOfficialBadge();}
@@ -3520,8 +3589,19 @@ function handleKey(key,code){
   if(key===expected){
     G.typedIndex++;
     SFX.correct(G.typedIndex-1,word.word.length);
+    // 🗡 居合一閃: 長単語(7文字+)の最初を1秒以内に打つとダメージ×2
+    let iaiBonus=1.0;
+    if(G.typedIndex===1&&word.word.length>=7){
+      const reactTime=performance.now()-G.wordStartTime;
+      if(reactTime<1000){
+        iaiBonus=2.0;
+        addDmgNum(W/2,H/2-60,'🗡 居合一閃！','#aaffff',true);
+        flash('#88ddff',0.4);
+        if(SFX&&SFX.combo5)SFX.combo5();
+      }
+    }
     // 1キーごとに実ダメージ（速度ブースト適用）
-    const baseDmg=Math.max(1,Math.floor(word.dmg/word.word.length));
+    const baseDmg=Math.max(1,Math.floor(word.dmg/word.word.length)*iaiBonus);
     const sb=calcSpeedDmgMul();
     const keyDmg=Math.max(1,Math.floor(baseDmg*sb.mul));
     G.enemyHp=Math.max(0,G.enemyHp-keyDmg);
@@ -3537,7 +3617,7 @@ function handleKey(key,code){
       processWordComplete(word);
     }
   }else{
-    G.wrongFlash=14;G.combo=0;G.comboTimer=0;G.wordMissCount++;G.perfectStreak=0;shake(6);SFX.wrong();wrongBurst(W/2,H-90);
+    streakBreakCheck(G.combo);G.wrongFlash=14;G.combo=0;G.comboTimer=0;G.wordMissCount++;G.perfectStreak=0;shake(6);SFX.wrong();wrongBurst(W/2,H-90);
   }
 }
 function processWordComplete(word){
