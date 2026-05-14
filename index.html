@@ -885,6 +885,13 @@ function addProj(x,y,color,type){
     size=Math.max(size,isYaki?22:20);
     color=isYaki?'#d97a2a':'#c4a878';
   }
+  // 🌿 学長の好きなものモチーフ・希少投擲（2%）
+  if(type==='small'&&Math.random()<0.02){
+    const r=Math.random();
+    if(r<0.33){type='yakusou';size=24;color='#66cc66';}     // やくそう（RPG風）
+    else if(r<0.66){type='kenjabook';size=26;color='#aa88ff';} // 賢者の書（学習）
+    else {type='pokemarche';size=22;color='#ff66aa';}        // 四次元バッグ風
+  }
   const speed=type==='critical'?14:type==='big'?18:30;
   const totalDist=Math.sqrt((tx-x)**2+(ty-y)**2);
   const flightFrames=Math.max(8,totalDist/speed);
@@ -975,6 +982,57 @@ function drawJagaimo(x,y,r,rot){
   ctx.beginPath();ctx.ellipse(0,0,r,r*0.7,0,0,Math.PI*2);ctx.stroke();
   ctx.restore();
 }
+// ── 🌿 やくそう（RPG風の薬草）──
+function drawYakusou(x,y,r,rot){
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot*0.15);
+  ctx.shadowBlur=10;ctx.shadowColor='#88ff88';
+  // 葉っぱ3枚
+  ctx.fillStyle='#66cc66';
+  for(let i=0;i<3;i++){
+    const ang=i*Math.PI*2/3-Math.PI/2;
+    const lx=Math.cos(ang)*r*0.4,ly=Math.sin(ang)*r*0.4;
+    ctx.beginPath();ctx.ellipse(lx,ly,r*0.5,r*0.25,ang,0,Math.PI*2);ctx.fill();
+  }
+  // 中心の実
+  ctx.fillStyle='#aaffaa';ctx.shadowBlur=0;
+  ctx.beginPath();ctx.arc(0,0,r*0.3,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+// ── 📕 賢者の書（学習モチーフ）──
+function drawKenjabook(x,y,r,rot){
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot*0.1);
+  ctx.shadowBlur=10;ctx.shadowColor='#aa88ff';
+  // 本の表紙
+  ctx.fillStyle='#5544aa';
+  ctx.fillRect(-r,-r*0.7,r*2,r*1.4);
+  ctx.shadowBlur=0;
+  // ページ
+  ctx.fillStyle='#fffacc';ctx.fillRect(-r*0.85,-r*0.55,r*1.7,r*1.1);
+  // ライン
+  ctx.strokeStyle='#aa88ff';ctx.lineWidth=1;
+  for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(-r*0.6,i*r*0.15);ctx.lineTo(r*0.6,i*r*0.15);ctx.stroke();}
+  // ★マーク
+  ctx.fillStyle='#FFD700';ctx.font=`bold ${Math.floor(r*0.5)}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('★',0,0);ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
+// ── 💼 四次元バッグ風（個人事業の道具袋）──
+function drawPokemarche(x,y,r,rot){
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot*0.12);
+  ctx.shadowBlur=10;ctx.shadowColor='#ff66aa';
+  // 袋本体（丸み）
+  const g=ctx.createRadialGradient(0,-r*0.3,r*0.1,0,0,r);
+  g.addColorStop(0,'#ffaaee');g.addColorStop(0.6,'#ff66aa');g.addColorStop(1,'#aa3377');
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.ellipse(0,0,r*0.85,r*0.95,0,0,Math.PI*2);ctx.fill();
+  // 口紐
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#552244';ctx.fillRect(-r*0.85,-r*0.85,r*1.7,r*0.15);
+  // ¥マーク
+  ctx.fillStyle='#FFD700';ctx.font=`bold ${Math.floor(r*0.6)}px "Hiragino Sans",monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('¥',0,r*0.05);ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
 // ── 敵の被弾リアクション（投擲物着弾時にたまに発火） ──
 const ENEMY_HIT_REACTIONS=['うっ！','ぐっ…','やめろ！','痛い！','効くわ…','くそっ！','んあぁ','ぐぬぬ','ぎゃっ','効きすぎや…'];
 function maybeEnemyReact(x,y){
@@ -1029,6 +1087,9 @@ function updateDrawProjs(){
     // 描画（タイプ別に切り替え）
     if(p.type==='yakiimo')drawYakiimo(p.x,p.y,p.size,p.rot);
     else if(p.type==='jagaimo')drawJagaimo(p.x,p.y,p.size,p.rot);
+    else if(p.type==='yakusou')drawYakusou(p.x,p.y,p.size,p.rot);
+    else if(p.type==='kenjabook')drawKenjabook(p.x,p.y,p.size,p.rot);
+    else if(p.type==='pokemarche')drawPokemarche(p.x,p.y,p.size,p.rot);
     else drawKoban(p.x,p.y,p.size,p.rot,p.color);
     return true;
   });
@@ -1856,6 +1917,17 @@ function drawHUD(){
   const dd=DIFFICULTY_DEFS[selectedDiff];
   ctx.fillStyle=dd.col;ctx.font='bold 8px monospace';ctx.textAlign='left';ctx.fillText(`[${dd.label}]`,14,30);
   ctx.fillStyle='rgba(200,180,255,0.55)';ctx.font='8px monospace';ctx.fillText(`STAGE ${G.stageIdx+1}/5`,58,30);
+  // ── Raw WPM（瞬間値）計算と表示 ──
+  // 直近10打鍵の平均間隔から推定
+  const rawWpm=G.lastKeyStrokeAt>0?
+    Math.max(0,Math.floor(60000/(performance.now()-G.lastKeyStrokeAt+50)*0.2)):0;
+  if(rawWpm>0&&G.currentWpm>0){
+    ctx.save();
+    ctx.textAlign='center';
+    ctx.fillStyle='rgba(150,150,170,0.55)';ctx.font='9px monospace';
+    ctx.fillText(`Raw ${rawWpm}`,W/2+58,28);
+    ctx.restore();
+  }
   // ── WPM大型常設表示（中央上部）──
   if(G.currentWpm>0){
     const wpm=G.currentWpm;
@@ -2509,6 +2581,14 @@ const TITLE_QUOTES=[
   '税金・社会保険、知らんと搾取されるで！',
   '健康・友達・家族も立派な資産や！',
   'いつかやるの「いつか」は、今日や！',
+  '冒険の書はこまめにセーブや！',
+  '勇者は突然強くならん、レベル上げや！',
+  'やくそうは惜しまず使え！',
+  '感謝の正拳突き 一日1万回や！',
+  '四次元ポケットより、副業の柱や！',
+  '伝説の杖より、複利の力や！',
+  '🚂 銀河鉄道に乗って経済自由の旅へ！',
+  '銀河の彼方の星にも、お金の勉強がある！',
 ];
 // ── 敵キャラ別の挑発セリフ（戦闘開始時にランダム表示）──
 const ENEMY_INTRO_LINES=[
@@ -3425,6 +3505,25 @@ function loop(){
       if(SFX&&SFX.fight)SFX.fight();
       flash('#FFD700',0.5);
       addDmgNum(W/2,H/2-30,'⚔ FIGHT！','#FFD700',true);
+    }else if(G.stageIntroTimer<=90){
+      // 3-2-1-GO カウントダウン（最後の1.5秒で）
+      const cdN=Math.ceil(G.stageIntroTimer/30);
+      const cdT=G.stageIntroTimer%30;
+      const scaleIn=Math.max(0,(30-cdT)/30);
+      const scale=0.5+1.5*scaleIn;
+      const alpha=Math.min(1,cdT/12);
+      ctx.save();
+      ctx.translate(W/2,H/2);
+      ctx.scale(scale,scale);
+      ctx.globalAlpha=alpha;
+      ctx.textAlign='center';
+      const col=cdN===1?'#88ff88':(cdN===2?'#ffaa00':'#ff6688');
+      ctx.fillStyle=col;
+      ctx.shadowBlur=24;ctx.shadowColor=col;
+      ctx.font='bold 100px "Hiragino Sans","Yu Gothic",monospace';
+      ctx.fillText(cdN>0?cdN:'GO!',0,30);
+      ctx.shadowBlur=0;
+      ctx.restore();
     }
     else{
       const t=G.stageIntroTimer;const alpha=t>120?Math.min(1,(150-t)/30):t<40?t/40:1;
