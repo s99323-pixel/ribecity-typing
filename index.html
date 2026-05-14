@@ -242,7 +242,27 @@ function startChip(type){
 
 // ── ハイスコア ──
 const LS_KEY='vitaminD_hs_v4';
-function loadHS(){try{return JSON.parse(localStorage.getItem(LS_KEY))||{score:0,combo:0,achievements:[]};}catch(e){return{score:0,combo:0,achievements:[]};}}
+function loadHS(){try{return JSON.parse(localStorage.getItem(LS_KEY))||{score:0,combo:0,achievements:[],streakDays:0,lastPlayDate:''};}catch(e){return{score:0,combo:0,achievements:[],streakDays:0,lastPlayDate:''};}}
+// 連続プレイ日数ストリーク（Duolingo式）
+function updateStreak(){
+  try{
+    const hs=loadHS();
+    const today=new Date();
+    const todayStr=`${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
+    if(hs.lastPlayDate===todayStr)return hs.streakDays||1;
+    // 昨日の日付計算
+    const ytd=new Date(today.getTime()-24*60*60*1000);
+    const ytdStr=`${ytd.getFullYear()}-${ytd.getMonth()+1}-${ytd.getDate()}`;
+    if(hs.lastPlayDate===ytdStr){
+      hs.streakDays=(hs.streakDays||0)+1;
+    }else{
+      hs.streakDays=1;
+    }
+    hs.lastPlayDate=todayStr;
+    localStorage.setItem(LS_KEY,JSON.stringify(hs));
+    return hs.streakDays;
+  }catch(e){return 1;}
+}
 function saveHS(score,combo){const hs=loadHS();let u=false;if(score>hs.score){hs.score=score;u=true;}if(combo>hs.combo){hs.combo=combo;u=true;}hs.lastScore=score;u=true;if(u)localStorage.setItem(LS_KEY,JSON.stringify(hs));return hs;}
 
 // ── 実績 ──
@@ -1507,6 +1527,8 @@ function startStage(idx){
   G.wordsLeft=G.wordQueue.length;G.flickTyped='';
   nextWord();
   G.playerHp=dd.playerHp;G.playerMaxHp=dd.playerHp;G.dispPlayerHp=dd.playerHp;
+  // ストリーク更新（1日初回プレイ時）
+  if(idx===0)updateStreak();
   stopChip();setBGMPitch(1.0);startBGM();SFX.fight();
   G.stageIntroTimer=150;G.phase='stageintro';
   if(idx===4)unlockAchievement('stage5');
@@ -2649,9 +2671,9 @@ const LION_VICTORY_LINES=[
   ['ブラック学長を倒した！','お前はもう本物の自由人や！','「今日が人生で一番若い日」や！'],
 ];
 // ── バージョン情報（タイトル右下表示用）──
-const GAME_VERSION='v2.9';
+const GAME_VERSION='v2.12';
 // 最終更新時刻（手動更新・JST 日本時間）
-const GAME_LAST_UPDATE='2026-05-14 06:00 JST';
+const GAME_LAST_UPDATE='2026-05-14 07:00 JST';
 // ── 📚 過去の名言（クリア時にランダム表示・著作物名と短い格言）──
 const BOOK_QUOTES=[
   {book:'7つの習慣',  quote:'最優先事項を優先する。',                author:'スティーブン・コヴィー'},
@@ -2919,6 +2941,14 @@ function drawTitle(){
   const hs=loadHS();
   ctx.fillStyle='rgba(255,215,0,0.7)';ctx.font='bold 11px monospace';ctx.textAlign='center';
   ctx.fillText(`BEST: ${hs.score}pts  MAX COMBO: ${hs.combo}`,W/2,H-38);
+  // 🔥 連続プレイ日数ストリーク（Duolingo式）
+  if(hs.streakDays&&hs.streakDays>=2){
+    const streakBlink=0.7+0.3*Math.sin(t*0.08);
+    ctx.fillStyle=`rgba(255,150,50,${streakBlink})`;ctx.font='bold 10px monospace';
+    ctx.shadowBlur=6;ctx.shadowColor='#ff8800';
+    ctx.fillText(`🔥 ${hs.streakDays}日連続プレイ中！`,W/2,H-72);
+    ctx.shadowBlur=0;
+  }
   const unlocked=getAchievements();
   ctx.fillStyle='rgba(130,130,165,0.5)';ctx.font='9px monospace';ctx.fillText(`実績: ${unlocked.length}/${ACHIEVEMENTS.length}`,W/2,H-24);
   // ── 🌟 今日のチャレンジ表示 ──
@@ -3917,6 +3947,10 @@ function processWordComplete(word){
     G.currentWord=null;G.shohouWord=null;G.isShohouMode=false;
     stopShohouBGM();
     SFX.ko();flash('#FFD700',0.92);
+    // 💰 撃破ボーナス：日給スタイルの大金額演出
+    const koBonus=2000+G.stageIdx*1500+G.comboMax*30;
+    G.score+=koBonus;
+    addDmgNum(W/2,H/2-80,`💰 撃破ボーナス +¥${koBonus.toLocaleString()}`,'#FFD700',true);
     enemyTypingShake=40;
     // SF2リスペクト・大KO演出
     G.enemyKoTimer=180;            // 90→180（3秒のスローモ吹っ飛び）
